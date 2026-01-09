@@ -1,4 +1,4 @@
-package ru.yandex.practicum.mymarket;
+package com.github.nesterukia.mymarket;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
