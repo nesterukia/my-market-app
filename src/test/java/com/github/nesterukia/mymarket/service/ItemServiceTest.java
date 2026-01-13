@@ -50,7 +50,7 @@ class ItemServiceTest {
         when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("phone", expectedPageable))
                 .thenReturn(mockPage);
 
-        Page<Item> result = itemService.getItems("phone", SortType.NO, 1, 10);
+        itemService.getItems("phone", SortType.NO, 1, 10);
 
         verify(itemRepository).findByTitleOrDescriptionContainingIgnoreCase("phone", expectedPageable);
     }
@@ -62,7 +62,7 @@ class ItemServiceTest {
         when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable))
                 .thenReturn(mockPage);
 
-        Page<Item> result = itemService.getItems("", SortType.ALPHA, 1, 5);
+        itemService.getItems("", SortType.ALPHA, 1, 5);
 
         verify(itemRepository).findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable);
     }
@@ -74,7 +74,7 @@ class ItemServiceTest {
         when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable))
                 .thenReturn(mockPage);
 
-        Page<Item> result = itemService.getItems("", SortType.PRICE, 1, 5);
+        itemService.getItems("", SortType.PRICE, 1, 5);
 
         verify(itemRepository).findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable);
     }
@@ -86,7 +86,7 @@ class ItemServiceTest {
         when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable))
                 .thenReturn(mockPage);
 
-        Page<Item> result = itemService.getItems("", SortType.NO, 2, 5);
+        itemService.getItems("", SortType.NO, 2, 5);
 
         verify(itemRepository).findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable);
     }
@@ -121,7 +121,7 @@ class ItemServiceTest {
         when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("laptop", expectedPageable))
                 .thenReturn(mockPage);
 
-        Page<Item> result = itemService.getItems("laptop", SortType.PRICE, 3, 20);
+        itemService.getItems("laptop", SortType.PRICE, 3, 20);
 
         verify(itemRepository).findByTitleOrDescriptionContainingIgnoreCase("laptop", expectedPageable);
     }
@@ -133,7 +133,7 @@ class ItemServiceTest {
         when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable))
                 .thenReturn(mockPage);
 
-        Page<Item> result = itemService.getItems("", SortType.NO, 1, 5);
+        itemService.getItems("", SortType.NO, 1, 5);
 
         verify(itemRepository).findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable);
     }

@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -102,9 +103,9 @@ class OrderServiceTest {
         when(mockCartItem1.getQuantity()).thenReturn(3);
         when(orderRepository.save(any(Order.class))).thenReturn(mockSavedOrder);
 
-        Order result = orderService.createOrderFromCart(mockCart);
+        orderService.createOrderFromCart(mockCart);
 
-        verify(orderRepository).save(argThat(order -> order instanceof Order));
+        verify(orderRepository).save(argThat(Objects::nonNull));
         verify(orderItemRepository).save(argThat(orderItem ->
                 orderItem.getOrder() == mockSavedOrder &&
                         orderItem.getItem() == mockItem &&
@@ -122,7 +123,7 @@ class OrderServiceTest {
         when(mockCartItem2.getQuantity()).thenReturn(5);
         when(orderRepository.save(any(Order.class))).thenReturn(mockSavedOrder);
 
-        Order result = orderService.createOrderFromCart(mockCart);
+        orderService.createOrderFromCart(mockCart);
 
         verify(orderRepository).save(any(Order.class));
         verify(orderItemRepository, times(2)).save(any(OrderItem.class));
