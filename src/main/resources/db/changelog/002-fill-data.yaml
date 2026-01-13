@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: insert-items-data-002
+      author: nesterukia
+      preConditions:
+        - onFail: MARK_RAN
+          tableExists:
+            tableName: items
+      changes:
+        - loadData:
+            tableName: items
+            file: data/items.csv
