@@ -3,6 +3,7 @@ package com.github.nesterukia.mymarket.dao;
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.CartItem;
 import com.github.nesterukia.mymarket.domain.Item;
+import com.github.nesterukia.mymarket.domain.User;
 import com.github.nesterukia.mymarket.utils.PostgresContainerTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,11 +27,16 @@ public class CartItemRepositoryTest extends PostgresContainerTest {
 
     private Cart testCart;
     private Item testItem;
+    private User testUser;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @BeforeEach
     public void prepareEntities() {
-        testCart = cartRepository.save(new Cart());
         testItem = itemRepository.save(new Item());
+        testUser = userRepository.save(new User());
+        testCart = cartRepository.save(Cart.builder().user(testUser).build());
     }
 
     @Test

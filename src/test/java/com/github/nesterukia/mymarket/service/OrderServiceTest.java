@@ -40,22 +40,24 @@ class OrderServiceTest {
     @Test
     void getAllOrders_ReturnsAllOrdersFromRepository() {
         List<Order> expectedOrders = List.of(new Order(), new Order());
-        when(orderRepository.findAll()).thenReturn(expectedOrders);
+        Long testUserId = 1234L;
+        when(orderRepository.findAllByUserId(testUserId)).thenReturn(expectedOrders);
 
-        List<Order> result = orderService.getAllOrders();
+        List<Order> result = orderService.getAllOrders(testUserId);
 
         assertThat(result).isEqualTo(expectedOrders);
-        verify(orderRepository).findAll();
+        verify(orderRepository).findAllByUserId(testUserId);
     }
 
     @Test
     void getAllOrders_EmptyList_ReturnsEmptyList() {
-        when(orderRepository.findAll()).thenReturn(List.of());
+        Long testUserId = 1234L;
+        when(orderRepository.findAllByUserId(testUserId)).thenReturn(List.of());
 
-        List<Order> result = orderService.getAllOrders();
+        List<Order> result = orderService.getAllOrders(testUserId);
 
         assertThat(result).isEmpty();
-        verify(orderRepository).findAll();
+        verify(orderRepository).findAllByUserId(testUserId);
     }
 
     @Test
@@ -131,12 +133,13 @@ class OrderServiceTest {
 
     @Test
     void getAllOrders_MultipleCalls_VerifiesRepositoryEachTime() {
-        when(orderRepository.findAll()).thenReturn(List.of(new Order()));
+        Long testUserId = 1234L;
+        when(orderRepository.findAllByUserId(testUserId)).thenReturn(List.of(new Order()));
 
-        orderService.getAllOrders();
-        orderService.getAllOrders();
+        orderService.getAllOrders(testUserId);
+        orderService.getAllOrders(testUserId);
 
-        verify(orderRepository, times(2)).findAll();
+        verify(orderRepository, times(2)).findAllByUserId(testUserId);
     }
 
     @Test

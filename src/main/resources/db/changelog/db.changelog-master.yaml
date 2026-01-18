@@ -3,3 +3,5 @@ databaseChangeLog:
       file: 001-init-schema.yaml
   - include:
       file: 002-fill-data.yaml
+  - include:
+      file: 003-add-user-entity.yaml

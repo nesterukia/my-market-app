@@ -5,11 +5,13 @@ import com.github.nesterukia.mymarket.dao.CartRepository;
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.CartItem;
 import com.github.nesterukia.mymarket.domain.Item;
+import com.github.nesterukia.mymarket.domain.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -23,15 +25,16 @@ public class CartService {
         this.cartItemRepository = cartItemRepository;
     }
 
-    public Cart getOrCreate() {
-        List<Cart> allCarts = cartRepository.findAll();
+    public Cart findById(Long cartId) {
+        return cartRepository.findById(cartId).orElseThrow();
+    }
 
-        if (allCarts.isEmpty()) {
-            Cart newCart = new Cart();
-            return cartRepository.save(newCart);
-        } else {
-            return allCarts.getFirst();
-        }
+    public Cart create(User user) {
+        return cartRepository.save(Cart.builder()
+                .user(user)
+                .cartItems(List.of())
+                .build()
+        );
     }
 
     public void increaseItemQuantityInCart(Cart cart, Item item) {
@@ -42,14 +45,16 @@ public class CartService {
     }
 
     public void decreaseItemQuantityInCart(Cart cart, Item item) {
-        CartItem cartItem = cartItemRepository.findByCartIdAndItemId(cart.getId(), item.getId())
-                .orElseThrow();
-        cartItem.decreaseQuantity();
+        Optional<CartItem> cartItemOptional = cartItemRepository.findByCartIdAndItemId(cart.getId(), item.getId());
 
-        if (cartItem.getQuantity() < 1) {
-            cartItemRepository.delete(cartItem);
-        } else {
-            cartItemRepository.save(cartItem);
+        if (cartItemOptional.isPresent()) {
+            CartItem cartItem = cartItemOptional.get();
+            cartItem.decreaseQuantity();
+            if (cartItem.getQuantity() < 1) {
+                cartItemRepository.delete(cartItem);
+            } else {
+                cartItemRepository.save(cartItem);
+            }
         }
     }
 
@@ -60,7 +65,7 @@ public class CartService {
     }
 
     public void clearCartAndDelete(Cart cart) {
-        cartItemRepository.deleteAll();
+        cartItemRepository.deleteAllByCart(cart);
         cartRepository.delete(cart);
     }
 }

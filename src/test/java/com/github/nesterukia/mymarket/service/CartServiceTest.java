@@ -2,6 +2,7 @@ package com.github.nesterukia.mymarket.service;
 
 import com.github.nesterukia.mymarket.dao.CartItemRepository;
 import com.github.nesterukia.mymarket.dao.CartRepository;
+import com.github.nesterukia.mymarket.dao.UserRepository;
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.CartItem;
 import com.github.nesterukia.mymarket.domain.Item;
@@ -11,13 +12,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import java.util.List;
 import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -28,6 +29,8 @@ class CartServiceTest {
     private CartRepository cartRepository;
     @Mock
     private CartItemRepository cartItemRepository;
+    @Mock
+    private UserRepository userRepository;
     @Spy
     private Cart mockCart;
     @Spy
@@ -37,31 +40,6 @@ class CartServiceTest {
 
     @InjectMocks
     private CartService cartService;
-
-    @Test
-    void getOrCreate_NoCarts_CreatesAndSavesNewCart() {
-        when(cartRepository.findAll()).thenReturn(List.of());
-        Cart newCart = new Cart();
-        when(cartRepository.save(any(Cart.class))).thenReturn(newCart);
-
-        Cart result = cartService.getOrCreate();
-
-        assertThat(result).isEqualTo(newCart);
-        verify(cartRepository).findAll();
-        verify(cartRepository).save(any(Cart.class));
-    }
-
-    @Test
-    void getOrCreate_ExistingCarts_ReturnsFirstCart() {
-        Cart existingCart = new Cart();
-        when(cartRepository.findAll()).thenReturn(List.of(existingCart));
-
-        Cart result = cartService.getOrCreate();
-
-        assertThat(result).isEqualTo(existingCart);
-        verify(cartRepository).findAll();
-        verify(cartRepository, never()).save(any());
-    }
 
     @Test
     void increaseItemQuantityInCart_NoExistingItem_CreatesNewCartItem() {
@@ -123,14 +101,13 @@ class CartServiceTest {
     }
 
     @Test
-    void decreaseItemQuantityInCart_NoExistingItem_ThrowsException() {
+    void decreaseItemQuantityInCart_NoExistingItem_DoNothing() {
         Long cartId = 1L, itemId = 2L;
         when(mockCart.getId()).thenReturn(cartId);
         when(mockItem.getId()).thenReturn(itemId);
         when(cartItemRepository.findByCartIdAndItemId(cartId, itemId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> cartService.decreaseItemQuantityInCart(mockCart, mockItem))
-                .isInstanceOf(RuntimeException.class);  // or specific exception
+        cartService.decreaseItemQuantityInCart(mockCart, mockItem);
 
         verify(cartItemRepository, never()).save(any());
         verify(cartItemRepository, never()).delete(any());
@@ -166,7 +143,7 @@ class CartServiceTest {
     void clearCartAndDelete_ClearsItemsAndDeletesCart() {
         cartService.clearCartAndDelete(mockCart);
 
-        verify(cartItemRepository).deleteAll();
+        verify(cartItemRepository).deleteAllByCart(mockCart);
         verify(cartRepository).delete(mockCart);
     }
 }

@@ -2,6 +2,7 @@ package com.github.nesterukia.mymarket.service;
 
 import com.github.nesterukia.mymarket.dao.OrderItemRepository;
 import com.github.nesterukia.mymarket.dao.OrderRepository;
+import com.github.nesterukia.mymarket.dao.UserRepository;
 import com.github.nesterukia.mymarket.domain.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -21,8 +22,8 @@ public class OrderService {
         this.orderItemRepository = orderItemRepository;
     }
 
-    public List<Order> getAllOrders() {
-        return orderRepository.findAll();
+    public List<Order> getAllOrders(Long userId) {
+        return orderRepository.findAllByUserId(userId);
     }
 
     public Order getOrderById(Long id) {
@@ -30,7 +31,12 @@ public class OrderService {
     }
 
     public Order createOrderFromCart(Cart cart) {
-        Order newOrder = orderRepository.save(new Order());
+        Order newOrder = orderRepository.save(
+                Order.builder()
+                        .user(cart.getUser())
+                        .orderItems(List.of())
+                        .build()
+        );
         cart.getCartItems().forEach(cartItem -> orderItemRepository.save(
                 new OrderItem(newOrder, cartItem.getItem(), cartItem.getQuantity())
         ));

@@ -1,0 +1,47 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-user-entity-003
+      author: nesterukia
+      preConditions:
+        - onFail: MARK_RAN
+          and:
+            - not:
+                tableExists:
+                  tableName: users
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: users_pkey
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addColumn:
+            tableName: carts
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_carts_user
+                    references: users(id)
+        - addColumn:
+            tableName: orders
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_orders_user
+                    references: users(id)
