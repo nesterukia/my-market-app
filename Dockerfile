@@ -12,7 +12,7 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-COPY --from=builder /app/target/my-market-app-0.0.1.jar my-market-app.jar
+COPY --from=builder /app/target/my-market-app-1.0.0.jar my-market-app.jar
 
 EXPOSE 8080
 
