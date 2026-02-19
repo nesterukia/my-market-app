@@ -1,5 +1,6 @@
 package com.github.nesterukia.mymarket.http;
 
+import com.github.nesterukia.mymarket.domain.ActionType;
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.CartItem;
 import com.github.nesterukia.mymarket.domain.Item;
@@ -7,371 +8,506 @@ import com.github.nesterukia.mymarket.domain.User;
 import com.github.nesterukia.mymarket.service.CartService;
 import com.github.nesterukia.mymarket.service.ItemService;
 import com.github.nesterukia.mymarket.service.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.boot.webflux.test.autoconfigure.WebFluxTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
+import static com.github.nesterukia.mymarket.utils.UserUtils.USER_ID_COOKIE;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
+@WebFluxTest(CartController.class)
+class CartControllerTest {
 
-@WebMvcTest(CartController.class)
-public class CartControllerTest {
     @Autowired
-    private MockMvc mockMvc;
+    private WebTestClient webTestClient;
+
     @MockitoBean
     private CartService cartService;
+
     @MockitoBean
     private ItemService itemService;
+
     @MockitoBean
     private UserService userService;
 
-    @Test
-    void getCartItems_EmptyCart_ReturnsCartView() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
+    private User testUser;
+    private Cart testCart;
+    private Item testItem1;
+    private Item testItem2;
+    private CartItem testCartItem1;
+    private CartItem testCartItem2;
 
-        Cart mockCart = mock(Cart.class);
-        when(cartService.create(any())).thenReturn(mockCart);
-        when(mockCart.getCartItems()).thenReturn(List.of());
+    private static final String ITEM_TITLE = "<title>Товар</title>";
+    private static final String ITEMS_TITLE = "<title>Витрина магазина</title>";
+    private static final String CART_TITLE = "<title>Корзина</title>";
+    private static final String ORDERS_TITLE = "<title>Список заказов</title>";
+    private static final String ORDER_TITLE = "<title>Заказ</title>";
 
-        mockMvc.perform(get("/cart/items"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("cart"));
+    @BeforeEach
+    void setUp() {
+        testUser = User.builder()
+                .id(1L)
+                .build();
 
-        verify(cartService).create(any());
+        testCart = Cart.builder()
+                .id(1L)
+                .userId(testUser.getId())
+                .build();
+
+        testItem1 = Item.builder()
+                .id(1L)
+                .title("Test Item 1")
+                .description("Description 1")
+                .imgPath("/img1.jpg")
+                .price(100L)
+                .build();
+
+        testItem2 = Item.builder()
+                .id(2L)
+                .title("Test Item 2")
+                .description("Description 2")
+                .imgPath("/img2.jpg")
+                .price(200L)
+                .build();
+
+        testCartItem1 = CartItem.builder()
+                .id(1L)
+                .cartId(testCart.getId())
+                .itemId(testItem1.getId())
+                .quantity(2)
+                .build();
+
+        testCartItem2 = CartItem.builder()
+                .id(2L)
+                .cartId(testCart.getId())
+                .itemId(testItem2.getId())
+                .quantity(1)
+                .build();
     }
 
     @Test
-    void getCartItems_WithItems_ReturnsCartView() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
+    void getCartItems_ShouldReturnCartViewWithItems() {
+        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
+                .thenReturn(Mono.just(testUser));
 
-        Cart mockCart = mock(Cart.class);
-        CartItem mockCartItem = mock(CartItem.class);
-        Item mockItem = mock(Item.class);
-        when(cartService.create(any())).thenReturn(mockCart);
-        when(mockCart.getCartItems()).thenReturn(List.of(mockCartItem));
-        when(mockCartItem.getItem()).thenReturn(mockItem);
+        when(cartService.findByUserId(testUser.getId()))
+                .thenReturn(Mono.just(testCart));
 
-        mockMvc.perform(get("/cart/items"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("cart"));
+        when(cartService.create(testUser))
+                .thenReturn(Mono.just(testCart));
 
-        verify(cartService).create(any());
+        when(cartService.findAllCartItemsByCart(testCart))
+                .thenReturn(Flux.just(testCartItem1, testCartItem2));
+
+        when(itemService.getItemById(testItem1.getId()))
+                .thenReturn(Mono.just(testItem1));
+
+        when(itemService.getItemById(testItem2.getId()))
+                .thenReturn(Mono.just(testItem2));
+
+        webTestClient.get()
+                .uri("/cart/items")
+                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(CART_TITLE);
+                    assert content.contains("Test Item 1");
+                    assert content.contains("Test Item 2");
+                    assert content.contains("2");
+                    assert content.contains("1");
+                    assert content.contains("300");
+                });
     }
 
     @Test
-    void changeItemQuantityFromCartPage_MinusAction_CallsDecrease() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
+    void getCartItems_ShouldCreateNewCartWhenNotFound() {
+        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
+                .thenReturn(Mono.just(testUser));
 
-        Item mockItem = new Item();
-        mockItem.setId(1L);
-        Cart mockCart = spy(Cart.builder().cartItems(List.of()).build());
-        when(itemService.getItemById(1L)).thenReturn(mockItem);
-        when(cartService.create(any())).thenReturn(mockCart);
-        when(cartService.findById(any())).thenReturn(mockCart);
+        when(cartService.findByUserId(testUser.getId()))
+                .thenReturn(Mono.empty());
 
-        mockMvc.perform(post("/cart/items")
-                        .param("id", "1")
-                        .param("action", "MINUS"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("cart"));
+        when(cartService.create(testUser))
+                .thenReturn(Mono.just(testCart));
 
-        verify(itemService).getItemById(1L);
-        verify(cartService).decreaseItemQuantityInCart(mockCart, mockItem);
+        when(cartService.findAllCartItemsByCart(testCart))
+                .thenReturn(Flux.empty());
+
+        webTestClient.get()
+                .uri("/cart/items")
+                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(CART_TITLE);
+                    assert !content.contains("Test Item 1");
+                });
     }
 
     @Test
-    void changeItemQuantityFromCartPage_PlusAction_CallsIncrease() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
+    void changeItemQuantityInCartFromCartPage_ShouldIncreaseQuantity() {
+        when(itemService.getItemById(testItem1.getId()))
+                .thenReturn(Mono.just(testItem1));
 
-        Item mockItem = new Item();
-        mockItem.setId(1L);
-        Cart mockCart = spy(Cart.builder().cartItems(List.of()).build());
-        when(itemService.getItemById(1L)).thenReturn(mockItem);
-        when(cartService.create(any())).thenReturn(mockCart);
-        when(cartService.findById(any())).thenReturn(mockCart);
+        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
+                .thenReturn(Mono.just(testUser));
 
-        mockMvc.perform(post("/cart/items")
-                        .param("id", "1")
-                        .param("action", "PLUS"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("cart"));
+        when(cartService.findByUserId(testUser.getId()))
+                .thenReturn(Mono.just(testCart));
 
-        verify(itemService).getItemById(1L);
-        verify(cartService).increaseItemQuantityInCart(mockCart, mockItem);
+        when(cartService.create(testUser))
+                .thenReturn(Mono.just(testCart));
+
+        when(cartService.create(testUser))
+                .thenReturn(Mono.just(testCart));
+
+        when(cartService.updateItemQuantityInCart(eq(ActionType.PLUS), eq(testCart), eq(testItem1), eq(true)))
+                .thenReturn(Mono.empty());
+
+        when(cartService.findAllCartItemsByCart(testCart))
+                .thenReturn(Flux.just(testCartItem1, testCartItem2));
+
+        when(itemService.getItemById(testItem1.getId()))
+                .thenReturn(Mono.just(testItem1));
+
+        when(itemService.getItemById(testItem2.getId()))
+                .thenReturn(Mono.just(testItem2));
+
+        webTestClient.post()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/cart/items")
+                        .queryParam("id", testItem1.getId())
+                        .queryParam("action", "PLUS")
+                        .queryParam("search", "")
+                        .queryParam("sort", "NO")
+                        .queryParam("pageNumber", 0)
+                        .queryParam("pageSize", 10)
+                        .build())
+                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(CART_TITLE);
+                    assert content.contains("Test Item 1");
+                    assert content.contains("Test Item 2");
+                });
     }
 
     @Test
-    void changeItemQuantityFromCartPage_DeleteAction_CallsRemove() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
+    void changeItemQuantityInCartFromCartPage_ShouldDecreaseQuantity() {
+        when(itemService.getItemById(testItem1.getId()))
+                .thenReturn(Mono.just(testItem1));
 
-        Item mockItem = new Item();
-        mockItem.setId(1L);
-        Cart mockCart = spy(Cart.builder().cartItems(List.of()).build());
-        when(itemService.getItemById(1L)).thenReturn(mockItem);
-        when(cartService.create(any())).thenReturn(mockCart);
-        when(cartService.findById(any())).thenReturn(mockCart);
+        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
+                .thenReturn(Mono.just(testUser));
 
-        mockMvc.perform(post("/cart/items")
-                        .param("id", "1")
-                        .param("action", "DELETE"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("cart"));
+        when(cartService.findByUserId(testUser.getId()))
+                .thenReturn(Mono.just(testCart));
 
-        verify(itemService).getItemById(1L);
-        verify(cartService).removeItemFromCart(mockCart, mockItem);
+        when(cartService.create(testUser))
+                .thenReturn(Mono.just(testCart));
+
+        when(cartService.updateItemQuantityInCart(eq(ActionType.MINUS), eq(testCart), eq(testItem1), eq(true)))
+                .thenReturn(Mono.empty());
+
+        when(cartService.findAllCartItemsByCart(testCart))
+                .thenReturn(Flux.just(testCartItem1, testCartItem2));
+
+        when(itemService.getItemById(testItem1.getId()))
+                .thenReturn(Mono.just(testItem1));
+
+        when(itemService.getItemById(testItem2.getId()))
+                .thenReturn(Mono.just(testItem2));
+
+        webTestClient.post()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/cart/items")
+                        .queryParam("id", testItem1.getId())
+                        .queryParam("action", "MINUS")
+                        .queryParam("search", "")
+                        .queryParam("sort", "NO")
+                        .queryParam("pageNumber", 0)
+                        .queryParam("pageSize", 10)
+                        .build())
+                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(CART_TITLE);
+                    assert content.contains("Test Item 1");
+                    assert content.contains("Test Item 2");
+                });
     }
 
     @Test
-    void changeItemQuantityFromItemsPage_MinusAction_RedirectsWithParams() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
+    void changeItemQuantityInCartFromCartPage_ShouldDeleteItem() {
+        when(itemService.getItemById(testItem1.getId()))
+                .thenReturn(Mono.just(testItem1));
 
-        Item mockItem = new Item();
-        mockItem.setId(1L);
-        Cart mockCart = mock(Cart.class);
-        when(itemService.getItemById(1L)).thenReturn(mockItem);
-        when(cartService.create(any())).thenReturn(mockCart);
+        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
+                .thenReturn(Mono.just(testUser));
 
-        mockMvc.perform(post("/items")
-                        .param("id", "1")
-                        .param("search", "phone")
-                        .param("sort", "PRICE")
-                        .param("pageNumber", "2")
-                        .param("pageSize", "10")
-                        .param("action", "MINUS"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?search=phone&sort=PRICE&pageNumber=2&pageSize=10"));
+        when(cartService.findByUserId(testUser.getId()))
+                .thenReturn(Mono.just(testCart));
 
-        verify(itemService).getItemById(1L);
-        verify(cartService).decreaseItemQuantityInCart(mockCart, mockItem);
+        when(cartService.create(testUser))
+                .thenReturn(Mono.just(testCart));
+
+        when(cartService.updateItemQuantityInCart(eq(ActionType.DELETE), eq(testCart), eq(testItem1), eq(true)))
+                .thenReturn(Mono.empty());
+
+        when(cartService.findAllCartItemsByCart(testCart))
+                .thenReturn(Flux.just(testCartItem2));
+
+        when(itemService.getItemById(testItem2.getId()))
+                .thenReturn(Mono.just(testItem2));
+
+        webTestClient.post()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/cart/items")
+                        .queryParam("id", testItem1.getId())
+                        .queryParam("action", "DELETE")
+                        .queryParam("search", "")
+                        .queryParam("sort", "NO")
+                        .queryParam("pageNumber", 0)
+                        .queryParam("pageSize", 10)
+                        .build())
+                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(CART_TITLE);
+                    assert !content.contains("Test Item 1");
+                    assert content.contains("Test Item 2");
+                });
     }
 
     @Test
-    void changeItemQuantityFromItemsPage_PlusAction_RedirectsWithParams() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
+    void changeItemQuantityInCartFromCartPage_ShouldCreateCartWhenNotFound() {
+        when(itemService.getItemById(testItem1.getId()))
+                .thenReturn(Mono.just(testItem1));
 
-        Item mockItem = new Item();
-        mockItem.setId(1L);
-        Cart mockCart = mock(Cart.class);
-        when(itemService.getItemById(1L)).thenReturn(mockItem);
-        when(cartService.create(any())).thenReturn(mockCart);
+        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
+                .thenReturn(Mono.just(testUser));
 
-        mockMvc.perform(post("/items")
-                        .param("id", "1")
-                        .param("action", "PLUS"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?search=&sort=NO&pageNumber=1&pageSize=5"));
+        when(cartService.findByUserId(testUser.getId()))
+                .thenReturn(Mono.empty());
 
-        verify(itemService).getItemById(1L);
-        verify(cartService).increaseItemQuantityInCart(mockCart, mockItem);
+        when(cartService.create(testUser))
+                .thenReturn(Mono.just(testCart));
+
+        when(cartService.updateItemQuantityInCart(eq(ActionType.PLUS), eq(testCart), eq(testItem1), eq(true)))
+                .thenReturn(Mono.empty());
+
+        when(cartService.findAllCartItemsByCart(testCart))
+                .thenReturn(Flux.just(testCartItem1));
+
+        when(itemService.getItemById(testItem1.getId()))
+                .thenReturn(Mono.just(testItem1));
+
+        webTestClient.post()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/cart/items")
+                        .queryParam("id", testItem1.getId())
+                        .queryParam("action", "PLUS")
+                        .queryParam("search", "")
+                        .queryParam("sort", "NO")
+                        .queryParam("pageNumber", 0)
+                        .queryParam("pageSize", 10)
+                        .build())
+                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(CART_TITLE);
+                    assert content.contains("Test Item 1");
+                });
     }
 
     @Test
-    void changeItemQuantityFromItemsPage_DefaultParams_RedirectsDefaults() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
+    void changeItemQuantityInCartFromItemsPage_ShouldReturnRedirectWithAlphaSort() {
+        when(itemService.getItemById(testItem1.getId()))
+                .thenReturn(Mono.just(testItem1));
 
-        Item mockItem = new Item();
-        mockItem.setId(1L);
-        Cart mockCart = mock(Cart.class);
-        when(itemService.getItemById(1L)).thenReturn(mockItem);
-        when(cartService.create(any())).thenReturn(mockCart);
+        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
+                .thenReturn(Mono.just(testUser));
 
-        mockMvc.perform(post("/items")
-                        .param("id", "1")
-                        .param("action", "PLUS"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?search=&sort=NO&pageNumber=1&pageSize=5"));
+        when(cartService.findByUserId(testUser.getId()))
+                .thenReturn(Mono.just(testCart));
 
-        verify(cartService).increaseItemQuantityInCart(mockCart, mockItem);
+        when(cartService.create(testUser))
+                .thenReturn(Mono.just(testCart));
+
+        when(cartService.updateItemQuantityInCart(eq(ActionType.PLUS), eq(testCart), eq(testItem1), eq(false)))
+                .thenReturn(Mono.empty());
+
+        when(cartService.findAllCartItemsByCart(testCart))
+                .thenReturn(Flux.just(testCartItem1));
+
+        webTestClient.post()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/items")
+                        .queryParam("id", testItem1.getId())
+                        .queryParam("action", "PLUS")
+                        .queryParam("search", "test")
+                        .queryParam("sort", "ALPHA")
+                        .queryParam("pageNumber", 0)
+                        .queryParam("pageSize", 10)
+                        .build())
+                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/items?search=test&sort=ALPHA&pageNumber=1&pageSize=10");
     }
 
     @Test
-    void changeItemQuantityFromItemPage_MinusAction_ReturnsItemView() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
+    void changeItemQuantityInCartFromItemsPage_ShouldReturnRedirectWithPriceSort() {
+        when(itemService.getItemById(testItem1.getId()))
+                .thenReturn(Mono.just(testItem1));
 
-        Item mockItem = new Item();
-        mockItem.setId(1L);
-        Cart mockCart = mock(Cart.class);
-        when(itemService.getItemById(1L)).thenReturn(mockItem);
-        when(cartService.create(any())).thenReturn(mockCart);
+        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
+                .thenReturn(Mono.just(testUser));
 
-        mockMvc.perform(post("/items/{id}", 1L)
-                        .param("action", "MINUS"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("item"));
+        when(cartService.findByUserId(testUser.getId()))
+                .thenReturn(Mono.just(testCart));
 
-        verify(itemService, times(2)).getItemById(1L);
-        verify(cartService).decreaseItemQuantityInCart(mockCart, mockItem);
-        verify(itemService, times(2)).getItemById(1L);
+        when(cartService.create(testUser))
+                .thenReturn(Mono.just(testCart));
+
+        when(cartService.updateItemQuantityInCart(eq(ActionType.MINUS), eq(testCart), eq(testItem1), eq(false)))
+                .thenReturn(Mono.empty());
+
+        when(cartService.findAllCartItemsByCart(testCart))
+                .thenReturn(Flux.just(testCartItem1));
+
+        webTestClient.post()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/items")
+                        .queryParam("id", testItem1.getId())
+                        .queryParam("action", "MINUS")
+                        .queryParam("search", "test")
+                        .queryParam("sort", "PRICE")
+                        .queryParam("pageNumber", 1)
+                        .queryParam("pageSize", 5)
+                        .build())
+                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueMatches("Location", ".*/items\\?search=test&sort=PRICE&pageNumber=1&pageSize=5.*");
     }
 
     @Test
-    void changeItemQuantityFromItemPage_PlusAction_ReturnsItemView() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
+    void changeItemQuantityInCartFromItemsPage_ShouldCreateCartWhenNotFound() {
+        when(itemService.getItemById(testItem1.getId()))
+                .thenReturn(Mono.just(testItem1));
 
-        Item mockItem = new Item();
-        mockItem.setId(1L);
-        Cart mockCart = mock(Cart.class);
-        when(itemService.getItemById(1L)).thenReturn(mockItem);
-        when(cartService.create(any())).thenReturn(mockCart);
+        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
+                .thenReturn(Mono.just(testUser));
 
-        mockMvc.perform(post("/items/{id}", 1L)
-                        .param("action", "PLUS"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("item"));
+        when(cartService.findByUserId(testUser.getId()))
+                .thenReturn(Mono.empty());
 
-        verify(itemService, times(2)).getItemById(1L);
-        verify(cartService).increaseItemQuantityInCart(mockCart, mockItem);
+        when(cartService.create(testUser))
+                .thenReturn(Mono.just(testCart));
+
+        when(cartService.updateItemQuantityInCart(eq(ActionType.DELETE), eq(testCart), eq(testItem1), eq(false)))
+                .thenReturn(Mono.empty());
+
+        when(cartService.findAllCartItemsByCart(testCart))
+                .thenReturn(Flux.empty());
+
+        webTestClient.post()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/items")
+                        .queryParam("id", testItem1.getId())
+                        .queryParam("action", "DELETE")
+                        .queryParam("search", "test")
+                        .queryParam("sort", "NO")
+                        .queryParam("pageNumber", 0)
+                        .queryParam("pageSize", 10)
+                        .build())
+                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                .exchange()
+                .expectStatus().is3xxRedirection();
     }
 
     @Test
-    void changeFromCartPage_MultipleActions_HandlesAllCases() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
+    void changeItemQuantityInCartFromItemPage_ShouldReturnItemView() {
+        when(itemService.getItemById(testItem1.getId()))
+                .thenReturn(Mono.just(testItem1));
 
-        Item mockItem = new Item();
-        mockItem.setId(1L);
-        Cart mockCart = spy(Cart.builder().cartItems(List.of()).build());
-        when(itemService.getItemById(1L)).thenReturn(mockItem);
-        when(cartService.create(any())).thenReturn(mockCart);
-        when(cartService.findById(any())).thenReturn(mockCart);
+        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
+                .thenReturn(Mono.just(testUser));
 
-        mockMvc.perform(post("/cart/items")
-                        .param("id", "1")
-                        .param("action", "minus"))
-                .andExpect(status().isOk());
+        when(cartService.findByUserId(testUser.getId()))
+                .thenReturn(Mono.just(testCart));
 
-        verify(cartService).decreaseItemQuantityInCart(mockCart, mockItem);
+        when(cartService.create(testUser))
+                .thenReturn(Mono.just(testCart));
+
+        when(cartService.updateItemQuantityInCart(eq(ActionType.PLUS), eq(testCart), eq(testItem1), eq(false)))
+                .thenReturn(Mono.empty());
+
+        when(cartService.countCartItemsByCartIdAndItemId(testCart.getId(), testItem1.getId()))
+                .thenReturn(Mono.just(2));
+
+        webTestClient.post()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/items/%d".formatted(testItem1.getId()))
+                        .queryParam("action", "PLUS")
+                        .queryParam("search", "")
+                        .queryParam("sort", "NO")
+                        .queryParam("pageNumber", 0)
+                        .queryParam("pageSize", 10)
+                        .build())
+                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(ITEM_TITLE);
+                    assert content.contains("Test Item 1");
+                    assert content.contains("2");
+                    assert content.contains("100");
+                });
     }
 
     @Test
-    void changeFromItemsPage_ComplexParams_RedirectsCorrectly() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
+    void getCartItems_ShouldCreateNewUserWhenCookieMissing() {
+        when(userService.getOrCreate(eq(null), any(ServerWebExchange.class)))
+                .thenReturn(Mono.just(testUser));
 
-        Item mockItem = new Item();
-        mockItem.setId(1L);
-        Cart mockCart = mock(Cart.class);
-        when(itemService.getItemById(1L)).thenReturn(mockItem);
-        when(cartService.create(any())).thenReturn(mockCart);
+        when(cartService.findByUserId(testUser.getId()))
+                .thenReturn(Mono.empty());
 
-        String expectedRedirect = "/items?search=laptop&sort=ALPHA&pageNumber=5&pageSize=15";
-        mockMvc.perform(post("/items")
-                        .param("id", "1")
-                        .param("search", "laptop")
-                        .param("sort", "ALPHA")
-                        .param("pageNumber", "5")
-                        .param("pageSize", "15")
-                        .param("action", "minus"))
-                .andExpect(redirectedUrl(expectedRedirect));
+        when(cartService.create(testUser))
+                .thenReturn(Mono.just(testCart));
 
-        verify(cartService).decreaseItemQuantityInCart(mockCart, mockItem);
-    }
+        when(cartService.findAllCartItemsByCart(testCart))
+                .thenReturn(Flux.empty());
 
-    @Test
-    void getCartItems_LowerCaseActionIgnored_CartView() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
-
-        Cart mockCart = mock(Cart.class);
-        when(cartService.create(any())).thenReturn(mockCart);
-
-        mockMvc.perform(get("/cart/items"))
-                .andExpect(view().name("cart"));
-
-        verify(cartService).create(any());
-    }
-
-    @Test
-    void changeFromItemPage_PathVariableAndAction_CallsServices() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
-
-        Item mockItem = new Item();
-        mockItem.setId(2L);
-        Cart mockCart = mock(Cart.class);
-        when(itemService.getItemById(2L)).thenReturn(mockItem);
-        when(cartService.create(any())).thenReturn(mockCart);
-
-        mockMvc.perform(post("/items/{id}", 2L)
-                        .param("action", "delete"))  // Only MINUS/PLUS supported
-                .andExpect(status().isOk())
-                .andExpect(view().name("item"));
-
-        verify(cartService).create(any());
-    }
-
-    @Test
-    void changeFromItemsPage_DeleteAction_NotSupported() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
-
-        Item mockItem = new Item();
-        mockItem.setId(1L);
-        Cart mockCart = mock(Cart.class);
-        when(itemService.getItemById(1L)).thenReturn(mockItem);
-        when(cartService.create(any())).thenReturn(mockCart);
-
-        mockMvc.perform(post("/items")
-                        .param("id", "1")
-                        .param("action", "DELETE"))
-                .andExpect(status().is3xxRedirection());  // No delete case
-
-        verify(cartService, never()).removeItemFromCart(any(), any());
-    }
-
-    @Test
-    void allEndpoints_ServiceInteractionsVerified() throws Exception {
-        Long userId = 12345L;
-        User mockUser = spy(User.builder().id(userId).build());
-        when(userService.getOrCreate(any(), any())).thenReturn(mockUser);
-
-        Item mockItem = new Item();
-        mockItem.setId(1L);
-        Cart mockCart = spy(Cart.builder().cartItems(List.of()).build());
-        when(itemService.getItemById(1L)).thenReturn(mockItem);
-        when(cartService.create(any())).thenReturn(mockCart);
-        when(cartService.findById(any())).thenReturn(mockCart);
-
-        mockMvc.perform(post("/cart/items")
-                        .param("id", "1")
-                        .param("action", "PLUS"))
-                .andExpect(status().isOk());
-
-        verify(itemService).getItemById(1L);
-        verify(cartService).increaseItemQuantityInCart(mockCart, mockItem);
+        webTestClient.get()
+                .uri("/cart/items")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(CART_TITLE);
+                });
     }
 }
-

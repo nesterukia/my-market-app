@@ -1,120 +1,332 @@
 package com.github.nesterukia.mymarket.http;
 
+import com.github.nesterukia.mymarket.dao.CartRepository;
+import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.Item;
-import com.github.nesterukia.mymarket.domain.SortType;
+import com.github.nesterukia.mymarket.domain.User;
+import com.github.nesterukia.mymarket.service.CartService;
 import com.github.nesterukia.mymarket.service.ItemService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.boot.webflux.test.autoconfigure.WebFluxTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
-@WebMvcTest(ItemController.class)
-public class ItemControllerTest {
+@WebFluxTest(ItemController.class)
+class ItemControllerTest {
+
+    private static final String ITEMS_TITLE = "<title>Витрина магазина</title>";
+    private static final String ITEM_TITLE = "<title>Товар</title>";
+
     @Autowired
-    private MockMvc mockMvc;
+    private WebTestClient webTestClient;
+
     @MockitoBean
     private ItemService itemService;
 
-    @Test
-    void getItems_DefaultParams_CallsServiceAndReturnsItemsView() throws Exception {
-        Pageable pageable = PageRequest.of(0, 5);
-        Page<Item> mockPage = new PageImpl<>(List.of(), pageable, 0);
-        when(itemService.getItems("", SortType.NO, 1, 5)).thenReturn(mockPage);
+    @MockitoBean
+    private CartService cartService;
 
-        mockMvc.perform(get("/items"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("items"));
+    private User testUser;
+    private Cart testCart;
+    private Item testItem1;
+    private Item testItem2;
+    private Item testItem3;
+    private Item testItem4;
+    private Item testItem5;
+    private List<Item> testItems;
 
-        verify(itemService).getItems("", SortType.NO, 1, 5);
+    @BeforeEach
+    void setUp() {
+        testUser = User.builder().id(1L).build();
+        testCart = Cart.builder().userId(testUser.getId()).build();
+
+        testItem1 = Item.builder()
+                .id(1L)
+                .title("Test Item 1")
+                .description("Description 1")
+                .imgPath("/img1.jpg")
+                .price(100L)
+                .build();
+
+        testItem2 = Item.builder()
+                .id(2L)
+                .title("Test Item 2")
+                .description("Description 2")
+                .imgPath("/img2.jpg")
+                .price(200L)
+                .build();
+
+        testItem3 = Item.builder()
+                .id(3L)
+                .title("Test Item 3")
+                .description("Description 3")
+                .imgPath("/img3.jpg")
+                .price(300L)
+                .build();
+
+        testItem4 = Item.builder()
+                .id(4L)
+                .title("Test Item 4")
+                .description("Description 4")
+                .imgPath("/img4.jpg")
+                .price(400L)
+                .build();
+
+        testItem5 = Item.builder()
+                .id(5L)
+                .title("Test Item 5")
+                .description("Description 5")
+                .imgPath("/img5.jpg")
+                .price(500L)
+                .build();
+
+        testItems = List.of(testItem1, testItem2, testItem3, testItem4, testItem5);
     }
 
     @Test
-    void getItems_WithSearchParam_CallsServiceWithSearch() throws Exception {
-        Pageable pageable = PageRequest.of(0, 5);
-        Page<Item> mockPage = new PageImpl<>(List.of(), pageable, 0);
-        when(itemService.getItems("phone", SortType.NO, 1, 5)).thenReturn(mockPage);
+    void getItems_ShouldReturnItemsViewWithDefaultParameters() {
+        Page<Item> itemPage = new PageImpl<>(testItems.subList(0, 5), Pageable.ofSize(5), 5);
 
-        mockMvc.perform(get("/items").param("search", "phone"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("items"));
+        when(itemService.getItems(eq(""), any(Pageable.class)))
+                .thenReturn(Mono.just(itemPage));
 
-        verify(itemService).getItems("phone", SortType.NO, 1, 5);
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(2L)))
+                .thenReturn(Mono.just(2));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(3L)))
+                .thenReturn(Mono.just(1));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(4L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(5L)))
+                .thenReturn(Mono.just(3));
+
+        webTestClient.get()
+                .uri("/items")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(ITEMS_TITLE);
+                    assert content.contains("Test Item 1");
+                    assert content.contains("Test Item 2");
+                    assert content.contains("Test Item 3");
+                    assert content.contains("Test Item 4");
+                    assert content.contains("Test Item 5");
+                    assert content.contains("NO");
+                });
     }
 
     @Test
-    void getItems_WithSortParam_CallsServiceWithSortType() throws Exception {
-        Pageable pageable = PageRequest.of(0, 5);
-        Page<Item> mockPage = new PageImpl<>(List.of(), pageable, 0);
-        when(itemService.getItems("", SortType.PRICE, 1, 5)).thenReturn(mockPage);
+    void getItems_ShouldReturnItemsViewWithSearchParameter() {
+        Page<Item> itemPage = new PageImpl<>(List.of(testItem1, testItem2), Pageable.ofSize(5), 2);
 
-        mockMvc.perform(get("/items").param("sort", "price"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("items"));
+        when(itemService.getItems(eq("test"), any(Pageable.class)))
+                .thenReturn(Mono.just(itemPage));
 
-        verify(itemService).getItems("", SortType.PRICE, 1, 5);
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
+                .thenReturn(Mono.just(1));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(2L)))
+                .thenReturn(Mono.just(0));
+
+        webTestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/items")
+                        .queryParam("search", "test")
+                        .build())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(ITEMS_TITLE);
+                    assert content.contains("Test Item 1");
+                    assert content.contains("Test Item 2");
+                    assert !content.contains("Test Item 3");
+                    assert content.contains("test");
+                });
     }
 
     @Test
-    void getItems_WithPageNumberParam_CallsServiceWithPageNumber() throws Exception {
-        Pageable pageable = PageRequest.of(0, 5);
-        Page<Item> mockPage = new PageImpl<>(List.of(), pageable, 0);
-        when(itemService.getItems("", SortType.NO, 2, 5)).thenReturn(mockPage);
+    void getItems_ShouldReturnItemsViewWithAlphaSort() {
+        Page<Item> itemPage = new PageImpl<>(testItems.subList(0, 5), Pageable.ofSize(5), 5);
 
-        mockMvc.perform(get("/items").param("pageNumber", "2"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("items"));
+        when(itemService.getItems(eq(""), any(Pageable.class)))
+                .thenReturn(Mono.just(itemPage));
 
-        verify(itemService).getItems("", SortType.NO, 2, 5);
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(2L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(3L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(4L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(5L)))
+                .thenReturn(Mono.just(0));
+
+        webTestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/items")
+                        .queryParam("sort", "ALPHA")
+                        .build())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(ITEMS_TITLE);
+                    assert content.contains("ALPHA");
+                });
     }
 
     @Test
-    void getItems_WithPageSizeParam_CallsServiceWithPageSize() throws Exception {
-        Pageable pageable = PageRequest.of(0, 5);
-    Page<Item> mockPage = new PageImpl<>(List.of(), pageable, 0);
-        when(itemService.getItems("", SortType.NO, 1, 10)).thenReturn(mockPage);
+    void getItems_ShouldReturnItemsViewWithPriceSort() {
+        Page<Item> itemPage = new PageImpl<>(testItems.subList(0, 5), Pageable.ofSize(5), 5);
 
-        mockMvc.perform(get("/items").param("pageSize", "10"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("items"));
+        when(itemService.getItems(eq(""), any(Pageable.class)))
+                .thenReturn(Mono.just(itemPage));
 
-        verify(itemService).getItems("", SortType.NO, 1, 10);
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(2L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(3L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(4L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(5L)))
+                .thenReturn(Mono.just(0));
+
+        webTestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/items")
+                        .queryParam("sort", "PRICE")
+                        .build())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(ITEMS_TITLE);
+                    assert content.contains("PRICE");
+                });
     }
 
     @Test
-    void getItems_RootPath_CallsServiceAndReturnsItemsView() throws Exception {
-        Pageable pageable = PageRequest.of(0, 5);
-    Page<Item> mockPage = new PageImpl<>(List.of(), pageable, 0);
-        when(itemService.getItems("", SortType.NO, 1, 5)).thenReturn(mockPage);
+    void getItems_ShouldReturnItemsViewWithPaginationParameters() {
+        Page<Item> itemPage = new PageImpl<>(testItems.subList(2, 5), Pageable.ofSize(3).withPage(1), 5);
 
-        mockMvc.perform(get("/"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("items"));
+        when(itemService.getItems(eq(""), any(Pageable.class)))
+                .thenReturn(Mono.just(itemPage));
 
-        verify(itemService).getItems("", SortType.NO, 1, 5);
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(3L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(4L)))
+                .thenReturn(Mono.just(2));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(5L)))
+                .thenReturn(Mono.just(1));
+
+        webTestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/items")
+                        .queryParam("pageNumber", 2)
+                        .queryParam("pageSize", 3)
+                        .build())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(ITEMS_TITLE);
+                    assert !content.contains("Test Item 1");
+                    assert !content.contains("Test Item 2");
+                    assert content.contains("Test Item 3");
+                    assert content.contains("Test Item 4");
+                    assert content.contains("Test Item 5");
+                });
     }
 
     @Test
-    void getItemById_ValidId_CallsServiceAndReturnsItemView() throws Exception {
-        Item mockItem = new Item();
-        when(itemService.getItemById(1L)).thenReturn(mockItem);
+    void getItems_ShouldHandleRootPath() {
+        Page<Item> itemPage = new PageImpl<>(testItems.subList(0, 5), Pageable.ofSize(5), 5);
 
-        mockMvc.perform(get("/items/{id}", 1L))
-                .andExpect(status().isOk())
-                .andExpect(view().name("item"));
+        when(itemService.getItems(eq(""), any(Pageable.class)))
+                .thenReturn(Mono.just(itemPage));
 
-        verify(itemService).getItemById(1L);
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(2L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(3L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(4L)))
+                .thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(5L)))
+                .thenReturn(Mono.just(0));
+
+        webTestClient.get()
+                .uri("/")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(ITEMS_TITLE);
+                });
+    }
+
+    @Test
+    void getItemById_ShouldReturnItemView() {
+        Long itemId = 1L;
+
+        when(itemService.getItemById(itemId))
+                .thenReturn(Mono.just(testItem1));
+
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(itemId)))
+                .thenReturn(Mono.just(2));
+
+        webTestClient.get()
+                .uri("/items/{id}", itemId)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(ITEM_TITLE);
+                    assert content.contains("Test Item 1");
+                    assert content.contains("Description 1");
+                    assert content.contains("/img1.jpg");
+                    assert content.contains("100");
+                    assert content.contains("2");
+                });
+    }
+
+    @Test
+    void getItemById_ShouldHandleZeroQuantity() {
+        Long itemId = 1L;
+
+        when(itemService.getItemById(itemId))
+                .thenReturn(Mono.just(testItem1));
+
+        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(itemId)))
+                .thenReturn(Mono.just(0));
+
+        webTestClient.get()
+                .uri("/items/{id}", itemId)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(content -> {
+                    assert content.contains(ITEM_TITLE);
+                    assert content.contains("Test Item 1");
+                    assert content.contains("0");
+                });
     }
 }

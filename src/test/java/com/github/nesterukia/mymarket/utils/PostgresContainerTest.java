@@ -21,10 +21,17 @@ public class PostgresContainerTest {
     }
 
     @DynamicPropertySource
-    protected static void registerJdbcProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
+    protected static void registerR2dbcProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.r2dbc.url", () ->
+                "r2dbc:postgresql://%s:%d/%s".formatted(
+                        postgres.getHost(),
+                        postgres.getMappedPort(5432),
+                        postgres.getDatabaseName()
+                )
+        );
+        registry.add("spring.r2dbc.username", postgres::getUsername);
+        registry.add("spring.r2dbc.password", postgres::getPassword);
+        registry.add("spring.r2dbc.pool.enabled", () -> "false");
+        registry.add("spring.sql.init.mode", () -> "always");
     }
 }

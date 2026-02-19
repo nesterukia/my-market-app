@@ -1,24 +1,25 @@
 package com.github.nesterukia.mymarket.service;
 
 import com.github.nesterukia.mymarket.dao.ItemRepository;
+import com.github.nesterukia.mymarket.dao.OrderItemRepository;
 import com.github.nesterukia.mymarket.domain.Item;
-import com.github.nesterukia.mymarket.domain.SortType;
+import com.github.nesterukia.mymarket.domain.OrderItem;
+import com.github.nesterukia.mymarket.domain.exceptions.EntityNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Pageable;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import java.util.List;
-import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -27,114 +28,209 @@ class ItemServiceTest {
     @Mock
     private ItemRepository itemRepository;
 
+    @Mock
+    private OrderItemRepository orderItemRepository;
+
     @InjectMocks
     private ItemService itemService;
 
-    @Test
-    void getItems_NoSearchNoSort_ReturnsPageWithUnsortedPageable() {
-        Page<Item> mockPage = new PageImpl<>(List.of());
-        PageRequest expectedPageable = PageRequest.of(0, 5);
-        when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable))
-                .thenReturn(mockPage);
+    private Item testItem1;
+    private Item testItem2;
+    private Item testItem3;
+    private OrderItem testOrderItem1;
+    private OrderItem testOrderItem2;
+    private Pageable pageable;
 
-        Page<Item> result = itemService.getItems("", SortType.NO, 1, 5);
+    @BeforeEach
+    void setUp() {
+        testItem1 = Item.builder()
+                .id(1L)
+                .title("Test Item 1")
+                .description("Description 1")
+                .imgPath("/img1.jpg")
+                .price(100L)
+                .build();
 
-        assertThat(result).isEqualTo(mockPage);
-        verify(itemRepository).findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable);
+        testItem2 = Item.builder()
+                .id(2L)
+                .title("Test Item 2")
+                .description("Description 2")
+                .imgPath("/img2.jpg")
+                .price(200L)
+                .build();
+
+        testItem3 = Item.builder()
+                .id(3L)
+                .title("Test Item 3")
+                .description("Description 3")
+                .imgPath("/img3.jpg")
+                .price(300L)
+                .build();
+
+        testOrderItem1 = OrderItem.builder()
+                .id(1L)
+                .orderId(1L)
+                .itemId(testItem1.getId())
+                .quantity(2)
+                .build();
+
+        testOrderItem2 = OrderItem.builder()
+                .id(2L)
+                .orderId(1L)
+                .itemId(testItem2.getId())
+                .quantity(1)
+                .build();
+
+        pageable = PageRequest.of(0, 10);
     }
 
     @Test
-    void getItems_WithSearch_ReturnsPageWithSearchTerm() {
-        Page<Item> mockPage = new PageImpl<>(List.of());
-        PageRequest expectedPageable = PageRequest.of(0, 10);
-        when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("phone", expectedPageable))
-                .thenReturn(mockPage);
+    void getItems_ShouldReturnPageWithItems() {
+        List<Item> itemList = List.of(testItem1, testItem2, testItem3);
+        Flux<Item> itemsFlux = Flux.fromIterable(itemList);
+        Mono<Long> countMono = Mono.just(3L);
 
-        itemService.getItems("phone", SortType.NO, 1, 10);
+        when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase(eq(""), any(Pageable.class)))
+                .thenReturn(itemsFlux);
+        when(itemRepository.countByTitleOrDescriptionContainingIgnoreCase(""))
+                .thenReturn(countMono);
 
-        verify(itemRepository).findByTitleOrDescriptionContainingIgnoreCase("phone", expectedPageable);
+        StepVerifier.create(itemService.getItems("", pageable))
+                .expectNextMatches(page ->
+                        page.getContent().size() == 3 &&
+                                page.getTotalElements() == 3 &&
+                                page.getContent().get(0).getId().equals(1L) &&
+                                page.getContent().get(1).getId().equals(2L) &&
+                                page.getContent().get(2).getId().equals(3L)
+                )
+                .verifyComplete();
     }
 
     @Test
-    void getItems_AlphaSort_ReturnsPageWithTitleAscSort() {
-        Page<Item> mockPage = new PageImpl<>(List.of());
-        PageRequest expectedPageable = PageRequest.of(0, 5, Sort.by(Sort.Direction.ASC, "title"));
-        when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable))
-                .thenReturn(mockPage);
+    void getItems_WithSearch_ShouldReturnFilteredItems() {
+        List<Item> itemList = List.of(testItem1, testItem2);
+        Flux<Item> itemsFlux = Flux.fromIterable(itemList);
+        Mono<Long> countMono = Mono.just(2L);
 
-        itemService.getItems("", SortType.ALPHA, 1, 5);
+        when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase(eq("test"), any(Pageable.class)))
+                .thenReturn(itemsFlux);
+        when(itemRepository.countByTitleOrDescriptionContainingIgnoreCase("test"))
+                .thenReturn(countMono);
 
-        verify(itemRepository).findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable);
+        StepVerifier.create(itemService.getItems("test", pageable))
+                .expectNextMatches(page ->
+                        page.getContent().size() == 2 &&
+                                page.getTotalElements() == 2
+                )
+                .verifyComplete();
     }
 
     @Test
-    void getItems_PriceSort_ReturnsPageWithPriceAscSort() {
-        Page<Item> mockPage = new PageImpl<>(List.of());
-        PageRequest expectedPageable = PageRequest.of(0, 5, Sort.by(Sort.Direction.ASC, "price"));
-        when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable))
-                .thenReturn(mockPage);
+    void getItems_WithEmptyResult_ShouldReturnEmptyPage() {
+        Flux<Item> itemsFlux = Flux.empty();
+        Mono<Long> countMono = Mono.just(0L);
 
-        itemService.getItems("", SortType.PRICE, 1, 5);
+        when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase(eq("nonexistent"), any(Pageable.class)))
+                .thenReturn(itemsFlux);
+        when(itemRepository.countByTitleOrDescriptionContainingIgnoreCase("nonexistent"))
+                .thenReturn(countMono);
 
-        verify(itemRepository).findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable);
+        StepVerifier.create(itemService.getItems("nonexistent", pageable))
+                .expectNextMatches(page ->
+                        page.getContent().isEmpty() &&
+                                page.getTotalElements() == 0
+                )
+                .verifyComplete();
     }
 
     @Test
-    void getItems_PageNumber2_ReturnsPageWithOffset4() {
-        Page<Item> mockPage = new PageImpl<>(List.of());
-        PageRequest expectedPageable = PageRequest.of(1, 5);  // pageNumber-1
-        when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable))
-                .thenReturn(mockPage);
+    void getItemById_ShouldReturnItemWhenExists() {
+        when(itemRepository.findById(1L))
+                .thenReturn(Mono.just(testItem1));
 
-        itemService.getItems("", SortType.NO, 2, 5);
-
-        verify(itemRepository).findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable);
+        StepVerifier.create(itemService.getItemById(1L))
+                .expectNext(testItem1)
+                .verifyComplete();
     }
 
     @Test
-    void getItemById_ExistingItem_ReturnsItem() {
-        Long id = 1L;
-        Item mockItem = new Item();
-        when(itemRepository.findById(id)).thenReturn(Optional.of(mockItem));
+    void getItemById_ShouldThrowExceptionWhenNotFound() {
+        when(itemRepository.findById(999L))
+                .thenReturn(Mono.empty());
 
-        Item result = itemService.getItemById(id);
-
-        assertThat(result).isEqualTo(mockItem);
-        verify(itemRepository).findById(id);
+        StepVerifier.create(itemService.getItemById(999L))
+                .expectErrorMatches(throwable ->
+                        throwable instanceof EntityNotFoundException &&
+                                throwable.getMessage().equals("Item with id = '999' wasn't found.")
+                )
+                .verify();
     }
 
     @Test
-    void getItemById_NonExistingItem_ThrowsException() {
-        Long id = 999L;
-        when(itemRepository.findById(id)).thenReturn(Optional.empty());
+    void findAllByOrderId_ShouldReturnItemDtos() {
+        when(orderItemRepository.findAllByOrderId(1L))
+                .thenReturn(Flux.just(testOrderItem1, testOrderItem2));
 
-        assertThatThrownBy(() -> itemService.getItemById(id))
-                .isInstanceOf(RuntimeException.class);  // orElseThrow()
+        when(itemRepository.findById(1L))
+                .thenReturn(Mono.just(testItem1));
+        when(itemRepository.findById(2L))
+                .thenReturn(Mono.just(testItem2));
 
-        verify(itemRepository).findById(id);
+        StepVerifier.create(itemService.findAllByOrderId(1L).collectList())
+                .expectNextMatches(itemDtos ->
+                        itemDtos.size() == 2 &&
+                                itemDtos.get(0).id().equals(1L) &&
+                                itemDtos.get(0).count() == 2 &&
+                                itemDtos.get(1).id().equals(2L) &&
+                                itemDtos.get(1).count() == 1
+                )
+                .verifyComplete();
     }
 
     @Test
-    void getItems_AllParamsCombined_CorrectPageable() {
-        Page<Item> mockPage = new PageImpl<>(List.of());
-        PageRequest expectedPageable = PageRequest.of(2, 20, Sort.by(Sort.Direction.ASC, "price"));  // page 3-1
-        when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("laptop", expectedPageable))
-                .thenReturn(mockPage);
+    void findAllByOrderId_ShouldReturnEmptyFluxWhenNoOrderItems() {
+        when(orderItemRepository.findAllByOrderId(999L))
+                .thenReturn(Flux.empty());
 
-        itemService.getItems("laptop", SortType.PRICE, 3, 20);
-
-        verify(itemRepository).findByTitleOrDescriptionContainingIgnoreCase("laptop", expectedPageable);
+        StepVerifier.create(itemService.findAllByOrderId(999L))
+                .verifyComplete();
     }
 
     @Test
-    void getItems_NegativePageNumber_UsesZeroOffset() {
-        Page<Item> mockPage = new PageImpl<>(List.of());
-        PageRequest expectedPageable = PageRequest.of(0, 5);
-        when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable))
-                .thenReturn(mockPage);
+    void findAllByOrderId_ShouldHandleMissingItem() {
+        when(orderItemRepository.findAllByOrderId(1L))
+                .thenReturn(Flux.just(testOrderItem1));
 
-        itemService.getItems("", SortType.NO, 1, 5);
+        when(itemRepository.findById(1L))
+                .thenReturn(Mono.empty());
 
-        verify(itemRepository).findByTitleOrDescriptionContainingIgnoreCase("", expectedPageable);
+        StepVerifier.create(itemService.findAllByOrderId(1L))
+                .verifyComplete();
+    }
+
+    @Test
+    void findAllByOrderId_ShouldHandleMultipleItemsWithSameId() {
+        OrderItem duplicateOrderItem = OrderItem.builder()
+                .id(3L)
+                .orderId(1L)
+                .itemId(testItem1.getId())
+                .quantity(3)
+                .build();
+
+        when(orderItemRepository.findAllByOrderId(1L))
+                .thenReturn(Flux.just(testOrderItem1, duplicateOrderItem));
+
+        when(itemRepository.findById(1L))
+                .thenReturn(Mono.just(testItem1));
+
+        StepVerifier.create(itemService.findAllByOrderId(1L).collectList())
+                .expectNextMatches(itemDtos ->
+                        itemDtos.size() == 2 &&
+                                itemDtos.get(0).id().equals(1L) &&
+                                itemDtos.get(0).count() == 2 &&
+                                itemDtos.get(1).id().equals(1L) &&
+                                itemDtos.get(1).count() == 3
+                )
+                .verifyComplete();
     }
 }
