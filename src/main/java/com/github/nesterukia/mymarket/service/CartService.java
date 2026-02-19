@@ -2,18 +2,22 @@ package com.github.nesterukia.mymarket.service;
 
 import com.github.nesterukia.mymarket.dao.CartItemRepository;
 import com.github.nesterukia.mymarket.dao.CartRepository;
+import com.github.nesterukia.mymarket.domain.ActionType;
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.CartItem;
 import com.github.nesterukia.mymarket.domain.Item;
 import com.github.nesterukia.mymarket.domain.User;
+import com.github.nesterukia.mymarket.domain.exceptions.EntityNotFoundException;
+import com.github.nesterukia.mymarket.utils.EntityType;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Optional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Service
+@Slf4j
 @Transactional
 public class CartService {
     private final CartRepository cartRepository;
@@ -25,47 +29,86 @@ public class CartService {
         this.cartItemRepository = cartItemRepository;
     }
 
-    public Cart findById(Long cartId) {
-        return cartRepository.findById(cartId).orElseThrow();
+    public Mono<Cart> findByUserId(Long userId) {
+        return cartRepository.findByUserId(userId);
     }
 
-    public Cart create(User user) {
-        return cartRepository.save(Cart.builder()
-                .user(user)
-                .cartItems(List.of())
-                .build()
-        );
+    public Mono<Cart> create(User user) {
+        Cart newCart = Cart.builder().userId(user.getId()).build();
+        log.debug("New cart for user[{}]: {}", user.getId(), newCart);
+        return cartRepository.save(newCart);
     }
 
-    public void increaseItemQuantityInCart(Cart cart, Item item) {
-        CartItem cartItem = cartItemRepository.findByCartIdAndItemId(cart.getId(), item.getId())
-                .orElseGet(() -> cartItemRepository.save(new CartItem(cart, item)));
-        cartItem.increaseQuantity();
-        cartItemRepository.save(cartItem);
+    public Mono<Void> updateItemQuantityInCart(ActionType actionType, Cart cart, Item item, boolean isDeleteAllowed) {
+        return switch (actionType) {
+            case MINUS -> decreaseItemQuantityInCart(cart, item);
+            case PLUS -> increaseItemQuantityInCart(cart, item);
+            case DELETE -> isDeleteAllowed ? removeItemFromCart(cart, item) : Mono.empty();
+        };
     }
 
-    public void decreaseItemQuantityInCart(Cart cart, Item item) {
-        Optional<CartItem> cartItemOptional = cartItemRepository.findByCartIdAndItemId(cart.getId(), item.getId());
+    public Mono<Void> clearCartAndDelete(Cart cart) {
+        return cartItemRepository.deleteAllByCartId(cart.getId()).then(cartRepository.delete(cart));
+    }
 
-        if (cartItemOptional.isPresent()) {
-            CartItem cartItem = cartItemOptional.get();
-            cartItem.decreaseQuantity();
-            if (cartItem.getQuantity() < 1) {
-                cartItemRepository.delete(cartItem);
-            } else {
-                cartItemRepository.save(cartItem);
-            }
+    public Flux<CartItem> findAllCartItemsByCart(Cart cart) {
+        return cartItemRepository.findAllByCartId(cart.getId());
+    }
+
+    public Mono<Integer> countCartItemsByCartIdAndItemId(Long cartId, Long itemId) {
+        return cartItemRepository.findByCartIdAndItemId(cartId, itemId)
+                .map(CartItem::getQuantity)
+                .switchIfEmpty(Mono.just(0));
+    }
+
+    public Mono<Integer> countCartItemsByUserIdAndItemId(Long userId, Long itemId) {
+        if (userId == null) {
+            return Mono.just(0);
         }
+
+        return cartRepository.findByUserId(userId)
+                .switchIfEmpty(cartRepository.save(Cart.builder().userId(userId).build()))
+                .flatMap(cart -> cartItemRepository.findByCartIdAndItemId(cart.getId(), itemId))
+                .map(CartItem::getQuantity)
+                .switchIfEmpty(Mono.just(0));
     }
 
-    public void removeItemFromCart(Cart cart, Item item) {
-        CartItem cartItem = cartItemRepository.findByCartIdAndItemId(cart.getId(), item.getId())
-                .orElseThrow();
-        cartItemRepository.delete(cartItem);
+
+    private Mono<Void> increaseItemQuantityInCart(Cart cart, Item item) {
+        return cartItemRepository.findByCartIdAndItemId(cart.getId(), item.getId())
+                .switchIfEmpty(
+                        cartItemRepository.save(CartItem.builder().cartId(cart.getId())
+                                .itemId(item.getId())
+                                .build()
+                        )
+                )
+                .map(cartItem -> {
+                    cartItem.increaseQuantity();
+                    return cartItem;
+                })
+                .flatMap(cartItemRepository::save).then();
     }
 
-    public void clearCartAndDelete(Cart cart) {
-        cartItemRepository.deleteAllByCart(cart);
-        cartRepository.delete(cart);
+    private Mono<Void> decreaseItemQuantityInCart(Cart cart, Item item) {
+        return cartItemRepository.findByCartIdAndItemId(cart.getId(), item.getId())
+                .map(cartItem -> {
+                    cartItem.decreaseQuantity();
+                    return cartItem;
+                })
+                .flatMap(cartItem -> {
+                    if (cartItem.getQuantity() < 1) {
+                        return cartItemRepository.delete(cartItem);
+                    } else {
+                        return cartItemRepository.save(cartItem).then();
+                    }
+                });
+    }
+
+    private Mono<Void> removeItemFromCart(Cart cart, Item item) {
+        return cartItemRepository.findByCartIdAndItemId(cart.getId(), item.getId())
+                .switchIfEmpty(
+                        Mono.error(EntityNotFoundException.itemInCartNotFound(item.getId(), cart.getId()))
+                )
+                .flatMap(cartItemRepository::delete);
     }
 }

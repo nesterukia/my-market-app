@@ -1,21 +1,30 @@
 package com.github.nesterukia.mymarket.http;
 
-import com.github.nesterukia.mymarket.domain.*;
+import com.github.nesterukia.mymarket.domain.ActionType;
+import com.github.nesterukia.mymarket.domain.Item;
+import com.github.nesterukia.mymarket.domain.SortType;
+import com.github.nesterukia.mymarket.domain.User;
 import com.github.nesterukia.mymarket.http.models.ItemDto;
+import com.github.nesterukia.mymarket.http.models.ItemsRequestDto;
 import com.github.nesterukia.mymarket.service.CartService;
 import com.github.nesterukia.mymarket.service.ItemService;
 import com.github.nesterukia.mymarket.service.UserService;
 import com.github.nesterukia.mymarket.utils.ItemUtils;
-import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.reactive.result.view.Rendering;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
+import reactor.util.function.Tuples;
 
 import java.util.List;
 
 import static com.github.nesterukia.mymarket.utils.UserUtils.USER_ID_COOKIE;
 
+@Slf4j
 @Controller
 public class CartController {
     private final CartService cartService;
@@ -30,106 +39,124 @@ public class CartController {
     }
 
     @GetMapping(value = "/cart/items")
-    public String getCartItems(Model model,
-                               @CookieValue(value = USER_ID_COOKIE, required = false) Long userId,
-                               HttpServletResponse response) {
-
-        User user = userService.getOrCreate(userId, response);
-        Cart cart = user.getCart() != null ? user.getCart() : cartService.create(user);
-        List<CartItem> cartItems = cart.getCartItems();
-        List<ItemDto> listOfItemDtos = cartItems.stream()
-                .map(ItemDto::fromCartItem)
-                .toList();
-
-        model.addAttribute("items", listOfItemDtos);
-        for (int i = 0; i < listOfItemDtos.size(); i++) {
-            String attributeName = "item%d".formatted(i + 1);
-            model.addAttribute(attributeName, listOfItemDtos.get(i));
-        }
-        model.addAttribute("total", ItemUtils.calculateTotalSum(listOfItemDtos));
-        return "cart";
+    public Mono<Rendering> getCartItems(@CookieValue(value = USER_ID_COOKIE, required = false) Long userId,
+                                        ServerWebExchange exchange) {
+        return userService.getOrCreate(userId, exchange)
+                .flatMap(user -> cartService.findByUserId(user.getId())
+                        .switchIfEmpty(cartService.create(user)))
+                .flatMapMany(cartService::findAllCartItemsByCart)
+                .flatMap(cartItem -> {
+                        Long itemId = cartItem.getItemId();
+                        Integer itemQuantity = cartItem.getQuantity();
+                        return itemService.getItemById(itemId).map(item -> Tuples.of(item, itemQuantity));
+                })
+                .map(itemQuantityTuple -> ItemDto.fromItem(
+                        itemQuantityTuple.getT1(),
+                        itemQuantityTuple.getT2()
+                ))
+                .collectList()
+                .map(this::renderCartViewFromItemDtos);
     }
 
     @PostMapping(value = "/cart/items")
-    public String changeItemQuantityInCartFromCartPage(
-            @RequestParam Long id,
-            @RequestParam String action,
+    public Mono<Rendering> changeItemQuantityInCartFromCartPage(
+            @ModelAttribute ItemsRequestDto itemsRequestDto,
             @CookieValue(value = USER_ID_COOKIE, required = false) Long userId,
-            HttpServletResponse response,
-            Model model) {
+            ServerWebExchange exchange) {
 
-        ActionType actionType = ActionType.valueOf(action.toUpperCase());
+        ActionType actionType = ActionType.valueOf(itemsRequestDto.action().toUpperCase());
+        return Mono.zip(itemService.getItemById(itemsRequestDto.id()), userService.getOrCreate(userId, exchange))
+                .flatMapMany(tuple -> {
+                    Item item = tuple.getT1();
+                    User user = tuple.getT2();
 
-        Item item = itemService.getItemById(id);
-        User user = userService.getOrCreate(userId, response);
-        Cart cart = user.getCart() != null ? user.getCart() : cartService.create(user);
-
-        switch (actionType) {
-            case MINUS -> cartService.decreaseItemQuantityInCart(cart, item);
-            case PLUS -> cartService.increaseItemQuantityInCart(cart, item);
-            case DELETE -> cartService.removeItemFromCart(cart, item);
-        }
-
-        List<CartItem> cartItems = cartService.findById(cart.getId()).getCartItems();
-        List<ItemDto> listOfItemDtos = cartItems.stream()
-                .map(ItemDto::fromCartItem)
-                .toList();
-
-        model.addAttribute("items", listOfItemDtos);
-        for (int i = 0; i < listOfItemDtos.size(); i++) {
-            String attributeName = "item%d".formatted(i + 1);
-            model.addAttribute(attributeName, listOfItemDtos.get(i));
-        }
-        model.addAttribute("total", ItemUtils.calculateTotalSum(listOfItemDtos));
-        return "cart";
+                    return cartService.findByUserId(user.getId())
+                            .switchIfEmpty(cartService.create(user))
+                            .flatMapMany(cart -> cartService.updateItemQuantityInCart(actionType, cart, item, true)
+                                    .thenMany(cartService.findAllCartItemsByCart(cart))
+                            );
+                })
+                .flatMap(cartItem -> {
+                    Long itemId = cartItem.getItemId();
+                    Integer itemQuantity = cartItem.getQuantity();
+                    return itemService.getItemById(itemId).zipWith(Mono.just(itemQuantity));
+                })
+                .map(itemQuantityTuple -> ItemDto.fromItem(
+                        itemQuantityTuple.getT1(), itemQuantityTuple.getT2()
+                ))
+                .collectList()
+                .map(this::renderCartViewFromItemDtos);
     }
 
     @PostMapping(value = "/items")
-    public String changeItemQuantityInCartFromItemsInCartPage(
-            @RequestParam(defaultValue = "") Long id,
-            @RequestParam(defaultValue = "") String search,
-            @RequestParam(defaultValue = "NO") String sort,
-            @RequestParam(defaultValue = "1") int pageNumber,
-            @RequestParam(defaultValue = "5") int pageSize,
-            @RequestParam String action,
+    public Mono<String> changeItemQuantityInCartFromItemsInCartPage(
+            @ModelAttribute ItemsRequestDto itemsRequestDto,
             @CookieValue(value = USER_ID_COOKIE, required = false) Long userId,
-            HttpServletResponse response) {
+            ServerWebExchange exchange) {
 
-        SortType sortType = SortType.valueOf(sort.toUpperCase());
-        ActionType actionType = ActionType.valueOf(action.toUpperCase());
-        Item item = itemService.getItemById(id);
-        User user = userService.getOrCreate(userId, response);
-        Cart cart = user.getCart() != null ? user.getCart() : cartService.create(user);
-
-        switch (actionType) {
-            case MINUS -> cartService.decreaseItemQuantityInCart(cart, item);
-            case PLUS -> cartService.increaseItemQuantityInCart(cart, item);
-        }
-
+        SortType sortType = SortType.valueOf(itemsRequestDto.sort().toUpperCase());
+        ActionType actionType = ActionType.valueOf(itemsRequestDto.action().toUpperCase());
         String redirectLinkTemplate = "redirect:/items?search=%s&sort=%s&pageNumber=%d&pageSize=%d";
-        return redirectLinkTemplate.formatted(search, sortType, pageNumber, pageSize);
+        String redirectLink = redirectLinkTemplate.formatted(itemsRequestDto.search(), sortType.toString(), itemsRequestDto.pageNumber(),
+                itemsRequestDto.pageSize());
+
+        return Mono.zip(itemService.getItemById(itemsRequestDto.id()), userService.getOrCreate(userId, exchange))
+                .flatMapMany(tuple -> {
+                    Item item = tuple.getT1();
+                    User user = tuple.getT2();
+
+                    return cartService.findByUserId(user.getId())
+                            .switchIfEmpty(cartService.create(user))
+                            .flatMapMany(cart -> cartService.updateItemQuantityInCart(actionType, cart, item, false)
+                                    .thenMany(cartService.findAllCartItemsByCart(cart))
+                            );
+                })
+                .then(Mono.just(redirectLink));
+
     }
 
     @PostMapping(value = "/items/{id}")
-    public String changeItemQuantityInCartFromItemInCartPage(
+    public Mono<Rendering> changeItemQuantityInCartFromItemInCartPage(
             @PathVariable Long id,
-            @RequestParam String action,
+            @ModelAttribute ItemsRequestDto itemsRequestDto,
             @CookieValue(value = USER_ID_COOKIE, required = false) Long userId,
-            HttpServletResponse response,
-            Model model) {
+            ServerWebExchange exchange) {
 
-        ActionType actionType = ActionType.valueOf(action.toUpperCase());
+        ActionType actionType = ActionType.valueOf(itemsRequestDto.action().toUpperCase());
 
-        Item item = itemService.getItemById(id);
-        User user = userService.getOrCreate(userId, response);
-        Cart cart = user.getCart() != null ? user.getCart() : cartService.create(user);
+        return Mono.zip(itemService.getItemById(id), userService.getOrCreate(userId, exchange))
+                .flatMap(itemUserTuple -> {
+                    Item item = itemUserTuple.getT1();
+                    User user = itemUserTuple.getT2();
 
-        switch (actionType) {
-            case MINUS -> cartService.decreaseItemQuantityInCart(cart, item);
-            case PLUS -> cartService.increaseItemQuantityInCart(cart, item);
+                    return cartService.findByUserId(user.getId())
+                            .switchIfEmpty(cartService.create(user))
+                            .flatMap(cart -> {
+                                cartService.updateItemQuantityInCart(actionType, cart, item, false);
+                                itemService.getItemById(id);
+                                return Mono.zip(
+                                        itemService.getItemById(id),
+                                        cartService.countCartItemsByCartIdAndItemId(cart.getId(), id)
+                                );
+                            })
+                            .map(itemQuantityTuple -> Rendering.view("item")
+                                    .modelAttribute("item", ItemDto.fromItem(
+                                            itemQuantityTuple.getT1(),
+                                            itemQuantityTuple.getT2())
+                                    )
+                                    .build()
+                            );
+                });
+    }
+
+    private Rendering renderCartViewFromItemDtos(List<ItemDto> itemDtos) {
+        Long total = ItemUtils.calculateTotalSum(itemDtos);
+        Rendering.Builder<?> viewBuilder = Rendering.view("cart")
+                .modelAttribute("items", itemDtos)
+                .modelAttribute("total", total);
+        for (int i = 0; i < itemDtos.size(); i++) {
+            viewBuilder.modelAttribute("item%d".formatted(i + 1), itemDtos.get(i));
         }
-
-        model.addAttribute("item", ItemDto.fromItem(itemService.getItemById(id)));
-        return "item";
+        return viewBuilder.build();
     }
 }

@@ -1,18 +1,14 @@
 package com.github.nesterukia.mymarket.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
-import java.util.ArrayList;
-import java.util.List;
-
-@Entity
 @Table(name = "items")
 @Getter
 @Setter
@@ -21,17 +17,13 @@ import java.util.List;
 @AllArgsConstructor
 public class Item {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
     private Long id;
+    @Column("title")
     private String title;
+    @Column("description")
     private String description;
-    @Column(name = "img_path")
+    @Column("img_path")
     private String imgPath;
+    @Column("price")
     private Long price;
-
-    @OneToMany(mappedBy = "item")
-    private List<CartItem> cartItems = new ArrayList<>();
-    @OneToMany(mappedBy = "item")
-    private List<OrderItem> orderItems = new ArrayList<>();
 }

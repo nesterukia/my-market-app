@@ -3,7 +3,6 @@ package com.github.nesterukia.mymarket.utils;
 import com.github.nesterukia.mymarket.domain.Item;
 import com.github.nesterukia.mymarket.http.models.ItemDto;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class ItemUtils {
@@ -15,10 +14,8 @@ public class ItemUtils {
                 "MOCK",
                 "MOCK",
                 "MOCK_IMG_PATH",
-                -1L,
-                new ArrayList<>(),
-                new ArrayList<>()
-        ));
+                -1L
+        ), 0);
     }
 
     public static Long calculateTotalSum(List<ItemDto> listOfItemDtos) {
