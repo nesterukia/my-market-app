@@ -20,7 +20,7 @@ services:
 
   my-market-app:
     build:
-      context: .
+      context: ./market-app
       dockerfile: Dockerfile
     container_name: my-market-app
     depends_on:
