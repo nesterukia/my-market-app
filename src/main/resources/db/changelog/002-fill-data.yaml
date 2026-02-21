@@ -7,6 +7,8 @@ databaseChangeLog:
           tableExists:
             tableName: items
       changes:
-        - loadData:
+        - loadUpdateData:
             tableName: items
+            primaryKey: "id"
             file: data/items.csv
+            relativeToChangelogFile: true

@@ -10,14 +10,11 @@ public record OrderDto(
         List<ItemDto> items,
         Long totalSum
 ) {
-    public static OrderDto fromOrder(Order order) {
-        List<ItemDto> listOfItemDtos = order.getOrderItems().stream()
-                .map(ItemDto::fromOrderItem)
-                .toList();
+    public static OrderDto fromOrder(Order order, List<ItemDto> itemDtos) {
         return new OrderDto(
                 order.getId(),
-                listOfItemDtos,
-                ItemUtils.calculateTotalSum(listOfItemDtos)
+                itemDtos,
+                ItemUtils.calculateTotalSum(itemDtos)
         );
     }
 }

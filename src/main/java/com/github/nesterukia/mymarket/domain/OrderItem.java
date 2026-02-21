@@ -1,34 +1,34 @@
 package com.github.nesterukia.mymarket.domain;
 
-import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
+import lombok.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
-@Entity
 @Table(name = "order_item")
 @Getter
 @Setter
 @RequiredArgsConstructor
+@AllArgsConstructor
+@Builder
 public class OrderItem {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "order_id", nullable = false)
-    private Order order;
+    @Column("order_id")
+    private Long orderId;
 
-    @ManyToOne
-    @JoinColumn(name = "item_id", nullable = false)
-    private Item item;
+    @Column("item_id")
+    private Long itemId;
+
+    @Column("quantity")
+    @Builder.Default
     private Integer quantity = 0;
 
-    public OrderItem(Order order, Item item, Integer quantity) {
-        this.order = order;
-        this.item = item;
+    public OrderItem(Long orderId, Long itemId, Integer quantity) {
+        this.orderId = orderId;
+        this.itemId = itemId;
         this.quantity = quantity;
     }
 }
-

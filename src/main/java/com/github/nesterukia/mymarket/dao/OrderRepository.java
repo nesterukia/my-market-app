@@ -1,10 +1,11 @@
 package com.github.nesterukia.mymarket.dao;
 
 import com.github.nesterukia.mymarket.domain.Order;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
-
-public interface OrderRepository extends JpaRepository<Order, Long> {
-    List<Order> findAllByUserId(Long userId);
+public interface OrderRepository extends ReactiveCrudRepository<Order, Long> {
+    Flux<Order> findAllByUserId(Long userId);
+    Mono<Order> findByIdAndUserId(Long id, Long userId);
 }

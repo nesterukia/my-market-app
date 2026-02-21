@@ -6,85 +6,152 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.util.List;
 
 @SpringBootTest
 public class ItemRepositoryTest extends PostgresContainerTest {
+
     @Autowired
     private ItemRepository itemRepository;
 
+    @Autowired
+    private CartItemRepository cartItemRepository;
+
     @BeforeEach
-    public void clearRepository(){
-        itemRepository.deleteAll();
+    void setUp() {
+        cartItemRepository.deleteAll().block();
+        itemRepository.deleteAll().block();
     }
 
     @Test
-    public void testFindNoMatchesEmptySearch() {
-        Pageable pageable = PageRequest.of(0, 10);
-        Page<Item> result = itemRepository.findByTitleOrDescriptionContainingIgnoreCase("", pageable);
-        assertThat(result.getTotalElements()).isEqualTo(0);
-        assertThat(result.getContent()).isEmpty();
+    void findByTitleOrDescriptionContainingIgnoreCase_ShouldReturnMatchingItems() {
+        Item item1 = Item.builder()
+                .title("Smartphone iPhone 13")
+                .description("Latest Apple smartphone with A15 chip")
+                .imgPath("/images/iphone13.jpg")
+                .price(999L)
+                .build();
+
+        Item item2 = Item.builder()
+                .title("Samsung Galaxy S21")
+                .description("Android smartphone with great camera")
+                .imgPath("/images/samsung21.jpg")
+                .price(899L)
+                .build();
+
+        Item item3 = Item.builder()
+                .title("MacBook Pro")
+                .description("Powerful laptop for developers")
+                .imgPath("/images/macbook.jpg")
+                .price(1999L)
+                .build();
+
+        Flux<Item> saveAll = itemRepository.saveAll(List.of(item1, item2, item3));
+
+        StepVerifier.create(saveAll.thenMany(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("smartphone", PageRequest.of(0, 10))))
+                .expectNextCount(2)
+                .verifyComplete();
+
+        StepVerifier.create(saveAll.thenMany(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("iphone", PageRequest.of(0, 10))))
+                .expectNextMatches(item -> item.getTitle().equals("Smartphone iPhone 13"))
+                .verifyComplete();
+
+        StepVerifier.create(saveAll.thenMany(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("laptop", PageRequest.of(0, 10))))
+                .expectNextMatches(item -> item.getTitle().equals("MacBook Pro"))
+                .verifyComplete();
     }
 
     @Test
-    public void testFindNoMatchesNonExistentSearch() {
-        Item item = new Item();
-        item.setTitle("Apple Product");
-        item.setDescription("iPhone description");
-        itemRepository.save(item);
+    void findByTitleOrDescriptionContainingIgnoreCase_ShouldReturnEmptyFluxWhenNoMatches() {
+        Item item = Item.builder()
+                .title("Test Item")
+                .description("Test Description")
+                .imgPath("/images/test.jpg")
+                .price(100L)
+                .build();
 
-        Pageable pageable = PageRequest.of(0, 10);
-        Page<Item> result = itemRepository.findByTitleOrDescriptionContainingIgnoreCase("banana", pageable);
-        assertThat(result.getTotalElements()).isEqualTo(0);
-        assertThat(result.getContent()).isEmpty();
+        Mono<Item> saveItem = itemRepository.save(item);
+
+        StepVerifier.create(saveItem.thenMany(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("nonexistent", PageRequest.of(0, 10))))
+                .expectNextCount(0)
+                .verifyComplete();
     }
 
     @Test
-    public void testFindByTitleMatchCaseInsensitive() {
-        Item item = new Item();
-        item.setTitle("APPLE PRODUCT");
-        item.setDescription("description");
-        itemRepository.save(item);
+    void findByTitleOrDescriptionContainingIgnoreCase_ShouldBeCaseInsensitive() {
+        Item item = Item.builder()
+                .title("GAMING LAPTOP")
+                .description("HIGH PERFORMANCE FOR GAMES")
+                .imgPath("/images/gaming.jpg")
+                .price(1500L)
+                .build();
 
-        Pageable pageable = PageRequest.of(0, 10);
-        Page<Item> result = itemRepository.findByTitleOrDescriptionContainingIgnoreCase("apple", pageable);
-        assertThat(result.getTotalElements()).isEqualTo(1);
-        assertThat(result.getContent().getFirst().getTitle()).isEqualTo("APPLE PRODUCT");
+        Mono<Item> saveItem = itemRepository.save(item);
+
+        StepVerifier.create(saveItem.thenMany(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("games", PageRequest.of(0, 10))))
+                .expectNextMatches(i -> i.getTitle().equals("GAMING LAPTOP"))
+                .verifyComplete();
+
+        StepVerifier.create(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("GAMES", PageRequest.of(0, 10)))
+                .expectNextMatches(i -> i.getTitle().equals("GAMING LAPTOP"))
+                .verifyComplete();
     }
 
     @Test
-    public void testFindByDescriptionMatchCaseInsensitive() {
-        Item item = new Item();
-        item.setTitle("title");
-        item.setDescription("DESCRIPTION WITH PHONE");
-        itemRepository.save(item);
+    void countByTitleOrDescriptionContainingIgnoreCase_ShouldReturnCorrectCount() {
+        Item item1 = Item.builder()
+                .title("Wireless Mouse")
+                .description("Ergonomic wireless mouse for work")
+                .imgPath("/images/mouse.jpg")
+                .price(50L)
+                .build();
 
-        Pageable pageable = PageRequest.of(0, 10);
-        Page<Item> result = itemRepository.findByTitleOrDescriptionContainingIgnoreCase("phone", pageable);
-        assertThat(result.getTotalElements()).isEqualTo(1);
-        assertThat(result.getContent().getFirst().getDescription()).isEqualTo("DESCRIPTION WITH PHONE");
+        Item item2 = Item.builder()
+                .title("Mechanical Keyboard")
+                .description("RGB mechanical keyboard for gaming")
+                .imgPath("/images/keyboard.jpg")
+                .price(120L)
+                .build();
+
+        Item item3 = Item.builder()
+                .title("Mouse Pad")
+                .description("Large gaming mouse pad")
+                .imgPath("/images/mousepad.jpg")
+                .price(25L)
+                .build();
+
+        Flux<Item> saveAll = itemRepository.saveAll(List.of(item1, item2, item3));
+
+        StepVerifier.create(saveAll.then(itemRepository.countByTitleOrDescriptionContainingIgnoreCase("mouse")))
+                .expectNext(2L)
+                .verifyComplete();
+
+        StepVerifier.create(saveAll.then(itemRepository.countByTitleOrDescriptionContainingIgnoreCase("gaming")))
+                .expectNext(2L)
+                .verifyComplete();
+
+        StepVerifier.create(saveAll.then(itemRepository.countByTitleOrDescriptionContainingIgnoreCase("nonexistent")))
+                .expectNext(0L)
+                .verifyComplete();
     }
 
     @Test
-    public void testFindPaginationMultipleItems() {
-        Item item1 = new Item();
-        item1.setTitle("First Item");
-        itemRepository.save(item1);
+    void findByTitleOrDescriptionContainingIgnoreCase_ShouldRespectPagination() {
+        Item item1 = Item.builder().title("Product A").description("First product").imgPath("/img/a.jpg").price(10L).build();
+        Item item2 = Item.builder().title("Product B").description("Second product").imgPath("/img/b.jpg").price(20L).build();
+        Item item3 = Item.builder().title("Product C").description("Third product").imgPath("/img/c.jpg").price(30L).build();
+        Item item4 = Item.builder().title("Product D").description("Fourth product").imgPath("/img/d.jpg").price(40L).build();
+        Item item5 = Item.builder().title("Product E").description("Fifth product").imgPath("/img/e.jpg").price(50L).build();
 
-        Item item2 = new Item();
-        item2.setTitle("Second Item");
-        itemRepository.save(item2);
+        Flux<Item> saveAll = itemRepository.saveAll(List.of(item1, item2, item3, item4, item5));
 
-        Pageable pageable = PageRequest.of(0, 1, Sort.by("title"));
-        Page<Item> result = itemRepository.findByTitleOrDescriptionContainingIgnoreCase("item", pageable);
-        assertThat(result.getTotalElements()).isEqualTo(2);
-        assertThat(result.getNumberOfElements()).isEqualTo(1);
-        assertThat(result.getContent().getFirst().getTitle()).isEqualTo("First Item");
+        StepVerifier.create(saveAll.thenMany(itemRepository.findByTitleOrDescriptionContainingIgnoreCase("product", PageRequest.of(0, 2))))
+                .expectNextCount(5)
+                .verifyComplete();
     }
 }
-

@@ -20,28 +20,22 @@ public class ItemsDto {
     private SortType sort;
     private Paging paging;
 
-    public ItemsDto(Page<Item> pageOfItems, SortType sortType, String search) {
-        Paging paging = new Paging(
-                pageOfItems.getPageable().getPageSize(),
-                pageOfItems.getPageable().getPageNumber() + 1,
-                pageOfItems.hasPrevious(),
-                pageOfItems.hasNext()
-        );
-
-        this.items = groupItemsByThree(pageOfItems.get().toList());
+    public ItemsDto(List<ItemDto> items, String search, SortType sortType, int pageNumber, int pageSize) {
+        Paging paging = new Paging(pageSize, pageNumber, pageNumber > 1, false);
+        this.items = groupItemsByThree(items);
         this.search = search;
         this.sort = sortType;
         this.paging = paging;
     }
 
-    private List<List<ItemDto>> groupItemsByThree(List<Item> items) {
+    private List<List<ItemDto>> groupItemsByThree(List<ItemDto> items) {
         List<List<ItemDto>> result = new ArrayList<>();
 
         for (int i = 0; i < items.size(); i += 3) {
             List<ItemDto> group = new ArrayList<>(3);
 
             for (int j = i; j < i + 3 && j < items.size(); j++) {
-                group.add(ItemDto.fromItem(items.get(j)));
+                group.add(items.get(j));
             }
 
             while (group.size() < 3) {

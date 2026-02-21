@@ -2,149 +2,251 @@ package com.github.nesterukia.mymarket.service;
 
 import com.github.nesterukia.mymarket.dao.CartItemRepository;
 import com.github.nesterukia.mymarket.dao.CartRepository;
-import com.github.nesterukia.mymarket.dao.UserRepository;
+import com.github.nesterukia.mymarket.domain.ActionType;
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.CartItem;
 import com.github.nesterukia.mymarket.domain.Item;
+import com.github.nesterukia.mymarket.domain.User;
+import com.github.nesterukia.mymarket.domain.exceptions.EntityNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import java.util.Optional;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
+
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CartServiceTest {
+
     @Mock
     private CartRepository cartRepository;
+
     @Mock
     private CartItemRepository cartItemRepository;
-    @Mock
-    private UserRepository userRepository;
-    @Spy
-    private Cart mockCart;
-    @Spy
-    private Item mockItem;
-    @Spy
-    private CartItem mockCartItem;
 
     @InjectMocks
     private CartService cartService;
 
-    @Test
-    void increaseItemQuantityInCart_NoExistingItem_CreatesNewCartItem() {
-        Long cartId = 1L, itemId = 2L;
-        when(mockCart.getId()).thenReturn(cartId);
-        when(mockItem.getId()).thenReturn(itemId);
-        when(cartItemRepository.findByCartIdAndItemId(cartId, itemId)).thenReturn(Optional.empty());
-        when(cartItemRepository.save(any(CartItem.class))).thenReturn(mockCartItem);
+    private User testUser;
+    private Cart testCart;
+    private Item testItem;
+    private CartItem testCartItem;
 
-        cartService.increaseItemQuantityInCart(mockCart, mockItem);
+    @BeforeEach
+    void setUp() {
+        testUser = User.builder()
+                .id(1L)
+                .build();
 
-        verify(cartItemRepository).findByCartIdAndItemId(cartId, itemId);
-        verify(cartItemRepository, times(2)).save(any(CartItem.class));  // create + increase
-        verify(mockCartItem).increaseQuantity();
+        testCart = Cart.builder()
+                .id(1L)
+                .userId(testUser.getId())
+                .build();
+
+        testItem = Item.builder()
+                .id(1L)
+                .title("Test Item")
+                .description("Description")
+                .imgPath("/img.jpg")
+                .price(100L)
+                .build();
+
+        testCartItem = CartItem.builder()
+                .id(1L)
+                .cartId(testCart.getId())
+                .itemId(testItem.getId())
+                .quantity(2)
+                .build();
     }
 
     @Test
-    void increaseItemQuantityInCart_ExistingItem_IncreasesQuantity() {
-        Long cartId = 1L, itemId = 2L;
-        when(mockCart.getId()).thenReturn(cartId);
-        when(mockItem.getId()).thenReturn(itemId);
-        when(cartItemRepository.findByCartIdAndItemId(cartId, itemId)).thenReturn(Optional.of(mockCartItem));
+    void findByUserId_ShouldReturnCartWhenExists() {
+        when(cartRepository.findByUserId(testUser.getId()))
+                .thenReturn(Mono.just(testCart));
 
-        cartService.increaseItemQuantityInCart(mockCart, mockItem);
-
-        verify(mockCartItem).increaseQuantity();
-        verify(cartItemRepository).save(mockCartItem);
+        StepVerifier.create(cartService.findByUserId(testUser.getId()))
+                .expectNext(testCart)
+                .verifyComplete();
     }
 
     @Test
-    void decreaseItemQuantityInCart_ExistingItemWithQuantityGt1_SavesUpdated() {
-        Long cartId = 1L, itemId = 2L;
-        when(mockCart.getId()).thenReturn(cartId);
-        when(mockItem.getId()).thenReturn(itemId);
-        when(mockCartItem.getQuantity()).thenReturn(2).thenReturn(1);  // before/after
-        when(cartItemRepository.findByCartIdAndItemId(cartId, itemId)).thenReturn(Optional.of(mockCartItem));
+    void findByUserId_ShouldReturnEmptyWhenCartNotFound() {
+        when(cartRepository.findByUserId(testUser.getId()))
+                .thenReturn(Mono.empty());
 
-        cartService.decreaseItemQuantityInCart(mockCart, mockItem);
-
-        verify(mockCartItem).decreaseQuantity();
-        verify(cartItemRepository).save(mockCartItem);
+        StepVerifier.create(cartService.findByUserId(testUser.getId()))
+                .verifyComplete();
     }
 
     @Test
-    void decreaseItemQuantityInCart_QuantityBecomesZero_DeletesItem() {
-        Long cartId = 1L, itemId = 2L;
-        when(mockCart.getId()).thenReturn(cartId);
-        when(mockItem.getId()).thenReturn(itemId);
-        mockCartItem.setQuantity(1);
-        when(cartItemRepository.findByCartIdAndItemId(cartId, itemId)).thenReturn(Optional.of(mockCartItem));
+    void create_ShouldCreateNewCart() {
+        when(cartRepository.save(any(Cart.class)))
+                .thenReturn(Mono.just(testCart));
 
-        assertEquals(1, mockCartItem.getQuantity());
-        cartService.decreaseItemQuantityInCart(mockCart, mockItem);
+        StepVerifier.create(cartService.create(testUser))
+                .expectNext(testCart)
+                .verifyComplete();
 
-        assertEquals(0, mockCartItem.getQuantity());
-        verify(mockCartItem).decreaseQuantity();
-        verify(cartItemRepository).delete(mockCartItem);
-        verify(cartItemRepository, never()).save(any());
+        verify(cartRepository).save(any(Cart.class));
     }
 
     @Test
-    void decreaseItemQuantityInCart_NoExistingItem_DoNothing() {
-        Long cartId = 1L, itemId = 2L;
-        when(mockCart.getId()).thenReturn(cartId);
-        when(mockItem.getId()).thenReturn(itemId);
-        when(cartItemRepository.findByCartIdAndItemId(cartId, itemId)).thenReturn(Optional.empty());
+    void updateItemQuantityInCart_WithMinusAction_ShouldDecreaseQuantity() {
+        when(cartItemRepository.findByCartIdAndItemId(testCart.getId(), testItem.getId()))
+                .thenReturn(Mono.just(testCartItem));
 
-        cartService.decreaseItemQuantityInCart(mockCart, mockItem);
+        when(cartItemRepository.save(any(CartItem.class)))
+                .thenReturn(Mono.just(testCartItem));
 
-        verify(cartItemRepository, never()).save(any());
-        verify(cartItemRepository, never()).delete(any());
+        StepVerifier.create(cartService.updateItemQuantityInCart(ActionType.MINUS, testCart, testItem, true))
+                .verifyComplete();
+
+        verify(cartItemRepository).findByCartIdAndItemId(testCart.getId(), testItem.getId());
+        verify(cartItemRepository).save(any(CartItem.class));
     }
 
     @Test
-    void removeItemFromCart_ExistingItem_DeletesIt() {
-        Long cartId = 1L, itemId = 2L;
-        when(mockCart.getId()).thenReturn(cartId);
-        when(mockItem.getId()).thenReturn(itemId);
-        when(cartItemRepository.findByCartIdAndItemId(cartId, itemId)).thenReturn(Optional.of(mockCartItem));
+    void updateItemQuantityInCart_WithMinusAction_ShouldDeleteItemWhenQuantityBecomesZero() {
+        CartItem cartItemWithQuantityOne = CartItem.builder()
+                .id(1L)
+                .cartId(testCart.getId())
+                .itemId(testItem.getId())
+                .quantity(1)
+                .build();
 
-        cartService.removeItemFromCart(mockCart, mockItem);
+        when(cartItemRepository.findByCartIdAndItemId(testCart.getId(), testItem.getId()))
+                .thenReturn(Mono.just(cartItemWithQuantityOne));
 
-        verify(cartItemRepository).findByCartIdAndItemId(cartId, itemId);
-        verify(cartItemRepository).delete(mockCartItem);
+        when(cartItemRepository.delete(any(CartItem.class)))
+                .thenReturn(Mono.empty());
+
+        StepVerifier.create(cartService.updateItemQuantityInCart(ActionType.MINUS, testCart, testItem, true))
+                .verifyComplete();
+
+        verify(cartItemRepository).delete(any(CartItem.class));
+        verify(cartItemRepository, never()).save(any(CartItem.class));
     }
 
     @Test
-    void removeItemFromCart_NoExistingItem_ThrowsException() {
-        Long cartId = 1L, itemId = 2L;
-        when(mockCart.getId()).thenReturn(cartId);
-        when(mockItem.getId()).thenReturn(itemId);
-        when(cartItemRepository.findByCartIdAndItemId(cartId, itemId)).thenReturn(Optional.empty());
+    void updateItemQuantityInCart_WithDeleteAction_ShouldRemoveItem() {
+        when(cartItemRepository.findByCartIdAndItemId(testCart.getId(), testItem.getId()))
+                .thenReturn(Mono.just(testCartItem));
 
-        assertThatThrownBy(() -> cartService.removeItemFromCart(mockCart, mockItem))
-                .isInstanceOf(RuntimeException.class);
+        when(cartItemRepository.delete(any(CartItem.class)))
+                .thenReturn(Mono.empty());
 
-        verify(cartItemRepository, never()).delete(any());
+        StepVerifier.create(cartService.updateItemQuantityInCart(ActionType.DELETE, testCart, testItem, true))
+                .verifyComplete();
+
+        verify(cartItemRepository).findByCartIdAndItemId(testCart.getId(), testItem.getId());
+        verify(cartItemRepository).delete(testCartItem);
     }
 
     @Test
-    void clearCartAndDelete_ClearsItemsAndDeletesCart() {
-        cartService.clearCartAndDelete(mockCart);
+    void updateItemQuantityInCart_WithDeleteAction_ShouldThrowExceptionWhenItemNotFound() {
+        when(cartItemRepository.findByCartIdAndItemId(testCart.getId(), testItem.getId()))
+                .thenReturn(Mono.empty());
 
-        verify(cartItemRepository).deleteAllByCart(mockCart);
-        verify(cartRepository).delete(mockCart);
+        StepVerifier.create(cartService.updateItemQuantityInCart(ActionType.DELETE, testCart, testItem, true))
+                .expectError(EntityNotFoundException.class)
+                .verify();
+
+        verify(cartItemRepository).findByCartIdAndItemId(testCart.getId(), testItem.getId());
+        verify(cartItemRepository, never()).delete(any(CartItem.class));
+    }
+
+    @Test
+    void updateItemQuantityInCart_WithDeleteAction_ShouldDoNothingWhenNotAllowed() {
+        StepVerifier.create(cartService.updateItemQuantityInCart(ActionType.DELETE, testCart, testItem, false))
+                .verifyComplete();
+
+        verify(cartItemRepository, never()).findByCartIdAndItemId(anyLong(), anyLong());
+        verify(cartItemRepository, never()).delete(any(CartItem.class));
+    }
+
+    @Test
+    void clearCartAndDelete_ShouldDeleteAllItemsAndCart() {
+        when(cartItemRepository.deleteAllByCartId(testCart.getId()))
+                .thenReturn(Mono.empty());
+
+        when(cartRepository.delete(testCart))
+                .thenReturn(Mono.empty());
+
+        StepVerifier.create(cartService.clearCartAndDelete(testCart))
+                .verifyComplete();
+
+        verify(cartItemRepository).deleteAllByCartId(testCart.getId());
+        verify(cartRepository).delete(testCart);
+    }
+
+    @Test
+    void findAllCartItemsByCart_ShouldReturnAllItems() {
+        when(cartItemRepository.findAllByCartId(testCart.getId()))
+                .thenReturn(Flux.just(testCartItem));
+
+        StepVerifier.create(cartService.findAllCartItemsByCart(testCart))
+                .expectNext(testCartItem)
+                .verifyComplete();
+    }
+
+    @Test
+    void countCartItemsByCartIdAndItemId_ShouldReturnQuantityWhenItemExists() {
+        when(cartItemRepository.findByCartIdAndItemId(testCart.getId(), testItem.getId()))
+                .thenReturn(Mono.just(testCartItem));
+
+        StepVerifier.create(cartService.countCartItemsByCartIdAndItemId(testCart.getId(), testItem.getId()))
+                .expectNext(2)
+                .verifyComplete();
+    }
+
+    @Test
+    void countCartItemsByCartIdAndItemId_ShouldReturnZeroWhenItemNotExists() {
+        when(cartItemRepository.findByCartIdAndItemId(testCart.getId(), testItem.getId()))
+                .thenReturn(Mono.empty());
+
+        StepVerifier.create(cartService.countCartItemsByCartIdAndItemId(testCart.getId(), testItem.getId()))
+                .expectNext(0)
+                .verifyComplete();
+    }
+
+    @Test
+    void countCartItemsByUserIdAndItemId_ShouldReturnZeroWhenUserIdIsNull() {
+        StepVerifier.create(cartService.countCartItemsByUserIdAndItemId(null, testItem.getId()))
+                .expectNext(0)
+                .verifyComplete();
+
+        verify(cartRepository, never()).findByUserId(anyLong());
+    }
+
+    @Test
+    void countCartItemsByUserIdAndItemId_ShouldCreateCartWhenNotFound() {
+        Cart newCart = Cart.builder()
+                .id(2L)
+                .userId(testUser.getId())
+                .build();
+
+        when(cartRepository.findByUserId(testUser.getId()))
+                .thenReturn(Mono.empty());
+
+        when(cartRepository.save(any(Cart.class)))
+                .thenReturn(Mono.just(newCart));
+
+        when(cartItemRepository.findByCartIdAndItemId(newCart.getId(), testItem.getId()))
+                .thenReturn(Mono.empty());
+
+        StepVerifier.create(cartService.countCartItemsByUserIdAndItemId(testUser.getId(), testItem.getId()))
+                .expectNext(0)
+                .verifyComplete();
+
+        verify(cartRepository).save(any(Cart.class));
     }
 }
-
