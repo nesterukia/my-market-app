@@ -20,15 +20,16 @@ public class ItemsDto {
     private SortType sort;
     private Paging paging;
 
-    public ItemsDto(List<ItemDto> items, String search, SortType sortType, int pageNumber, int pageSize) {
-        Paging paging = new Paging(pageSize, pageNumber, pageNumber > 1, false);
-        this.items = groupItemsByThree(items);
-        this.search = search;
-        this.sort = sortType;
-        this.paging = paging;
+    public static ItemsDto fromListOfItemDtos(List<ItemDto> items, String search, SortType sortType, Paging paging) {
+        return new ItemsDto(
+                groupItemsByThree(items),
+                search,
+                sortType,
+                paging
+        );
     }
 
-    private List<List<ItemDto>> groupItemsByThree(List<ItemDto> items) {
+    private static List<List<ItemDto>> groupItemsByThree(List<ItemDto> items) {
         List<List<ItemDto>> result = new ArrayList<>();
 
         for (int i = 0; i < items.size(); i += 3) {
