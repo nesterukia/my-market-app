@@ -28,7 +28,7 @@ public class RedisContainerTest {
                 "r2dbc:postgresql://%s:%d/%s".formatted(
                         "localhost",
                         5432,
-                        "my-market-db"
+                        "mock-db-name"
                 )
         );
         registry.add("spring.r2dbc.username", () -> "postgres");

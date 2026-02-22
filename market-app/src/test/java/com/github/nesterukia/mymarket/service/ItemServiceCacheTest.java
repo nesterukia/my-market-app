@@ -15,12 +15,14 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.LongStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 public class ItemServiceCacheTest extends RedisContainerTest {
@@ -84,10 +86,10 @@ public class ItemServiceCacheTest extends RedisContainerTest {
         assertThat(secondPageResult).hasSize(10);
         assertThat(secondPageResult.getFirst().getId()).isEqualTo(11L);
 
-        List<?> firstPageAgain = itemService.getItems("", firstPage).block();
+        List<Item> firstPageAgain = itemService.getItems("", firstPage).block();
 
         assertThat(firstPageAgain).hasSize(10);
-        assertThat(((Map<?, ?>) firstPageAgain.getFirst()).get("id")).isEqualTo(1);
+        assertThat(firstPageAgain.getFirst().getId()).isEqualTo(1L);
 
         verify(itemRepository, times(2)).findByTitleOrDescriptionContainingIgnoreCase(eq(""), any(Pageable.class));
     }

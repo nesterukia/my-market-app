@@ -1,6 +1,7 @@
 package com.github.nesterukia.mymarket.config;
 
-import com.github.nesterukia.mymarket.domain.Item;
+import com.github.nesterukia.mymarket.dao.cache.serializers.ItemCardRedisSerializer;
+import com.github.nesterukia.mymarket.dao.cache.serializers.ItemListRedisSerializer;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,8 +11,6 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-
-import java.util.List;
 
 @Configuration
 @EnableCaching
@@ -32,14 +31,14 @@ public class RedisCacheConfig {
                 .serializeKeysWith(RedisSerializationContext.SerializationPair
                         .fromSerializer(StringRedisSerializer.UTF_8))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
-                        .fromSerializer(new JacksonJsonRedisSerializer<>(Item.class)))
+                        .fromSerializer(new ItemCardRedisSerializer()))
                 .disableCachingNullValues();
 
         RedisCacheConfiguration listConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair
                         .fromSerializer(StringRedisSerializer.UTF_8))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
-                        .fromSerializer(new JacksonJsonRedisSerializer<>(List.class))
+                        .fromSerializer(new ItemListRedisSerializer())
                 )
                 .disableCachingNullValues();
 
