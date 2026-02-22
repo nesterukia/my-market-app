@@ -3,15 +3,34 @@ services:
     image: postgres:16-alpine
     container_name: my-market-postgres
     environment:
-      POSTGRES_DB: my-market-db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - my-market-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - my-market-network
+
+  redis-cache:
+    image: redis:7.4.2-bookworm
+    container_name: my-redis-cache
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - my-market-data:/var/lib/redis/data
+    command: redis-server --save 20 1 --loglevel warning --requirepass $REDIS_PASSWORD
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "$REDIS_PASSWORD", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,10 +45,12 @@ services:
     depends_on:
       postgres-db:
         condition: service_healthy
+      redis-cache:
+        condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: r2dbc:postgresql://postgres-db:5432/my-market-db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
     ports:
       - "8080:8080"
     networks:
@@ -37,7 +58,7 @@ services:
     restart: on-failure
 
 volumes:
-  postgres_data:
+  my-market-data:
 
 networks:
   my-market-network:
