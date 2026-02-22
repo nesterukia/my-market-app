@@ -1,10 +1,6 @@
 package com.github.nesterukia.mymarket.domain;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -15,6 +11,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Builder
 @RequiredArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode
 public class Item {
     @Id
     private Long id;

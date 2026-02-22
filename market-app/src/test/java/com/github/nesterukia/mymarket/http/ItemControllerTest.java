@@ -100,6 +100,8 @@ class ItemControllerTest {
         Page<Item> itemPage = new PageImpl<>(testItems.subList(0, 5), Pageable.ofSize(5), 5);
 
         when(itemService.getItems(eq(""), any(Pageable.class)))
+                .thenReturn(Mono.just(testItems.subList(0, 5)));
+        when(itemService.formItemsPage(any(), any(String.class), any(Pageable.class)))
                 .thenReturn(Mono.just(itemPage));
 
         when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
@@ -134,6 +136,8 @@ class ItemControllerTest {
         Page<Item> itemPage = new PageImpl<>(List.of(testItem1, testItem2), Pageable.ofSize(5), 2);
 
         when(itemService.getItems(eq("test"), any(Pageable.class)))
+                .thenReturn(Mono.just(List.of(testItem1, testItem2)));
+        when(itemService.formItemsPage(any(), any(String.class), any(Pageable.class)))
                 .thenReturn(Mono.just(itemPage));
 
         when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
@@ -163,6 +167,8 @@ class ItemControllerTest {
         Page<Item> itemPage = new PageImpl<>(testItems.subList(0, 5), Pageable.ofSize(5), 5);
 
         when(itemService.getItems(eq(""), any(Pageable.class)))
+                .thenReturn(Mono.just(testItems.subList(0, 5)));
+        when(itemService.formItemsPage(any(), any(String.class), any(Pageable.class)))
                 .thenReturn(Mono.just(itemPage));
 
         when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
@@ -195,6 +201,9 @@ class ItemControllerTest {
         Page<Item> itemPage = new PageImpl<>(testItems.subList(0, 5), Pageable.ofSize(5), 5);
 
         when(itemService.getItems(eq(""), any(Pageable.class)))
+                .thenReturn(Mono.just(testItems.subList(0, 5)));
+
+        when(itemService.formItemsPage(any(), any(String.class), any(Pageable.class)))
                 .thenReturn(Mono.just(itemPage));
 
         when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
@@ -227,6 +236,9 @@ class ItemControllerTest {
         Page<Item> itemPage = new PageImpl<>(testItems.subList(2, 5), Pageable.ofSize(3).withPage(1), 5);
 
         when(itemService.getItems(eq(""), any(Pageable.class)))
+                .thenReturn(Mono.just(testItems.subList(2, 5)));
+
+        when(itemService.formItemsPage(any(), any(String.class), any(Pageable.class)))
                 .thenReturn(Mono.just(itemPage));
 
         when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(3L)))
@@ -260,6 +272,9 @@ class ItemControllerTest {
         Page<Item> itemPage = new PageImpl<>(testItems.subList(0, 5), Pageable.ofSize(5), 5);
 
         when(itemService.getItems(eq(""), any(Pageable.class)))
+                .thenReturn(Mono.just(testItems.subList(0, 5)));
+
+        when(itemService.formItemsPage(any(), any(String.class), any(Pageable.class)))
                 .thenReturn(Mono.just(itemPage));
 
         when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))

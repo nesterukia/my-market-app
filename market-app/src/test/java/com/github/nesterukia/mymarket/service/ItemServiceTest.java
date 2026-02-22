@@ -88,20 +88,16 @@ class ItemServiceTest {
     void getItems_ShouldReturnPageWithItems() {
         List<Item> itemList = List.of(testItem1, testItem2, testItem3);
         Flux<Item> itemsFlux = Flux.fromIterable(itemList);
-        Mono<Long> countMono = Mono.just(3L);
 
         when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase(eq(""), any(Pageable.class)))
                 .thenReturn(itemsFlux);
-        when(itemRepository.countByTitleOrDescriptionContainingIgnoreCase(""))
-                .thenReturn(countMono);
 
         StepVerifier.create(itemService.getItems("", pageable))
-                .expectNextMatches(page ->
-                        page.getContent().size() == 3 &&
-                                page.getTotalElements() == 3 &&
-                                page.getContent().get(0).getId().equals(1L) &&
-                                page.getContent().get(1).getId().equals(2L) &&
-                                page.getContent().get(2).getId().equals(3L)
+                .expectNextMatches(list ->
+                        list.size() == 3 &&
+                                list.get(0).getId().equals(1L) &&
+                                list.get(1).getId().equals(2L) &&
+                                list.get(2).getId().equals(3L)
                 )
                 .verifyComplete();
     }
@@ -110,17 +106,13 @@ class ItemServiceTest {
     void getItems_WithSearch_ShouldReturnFilteredItems() {
         List<Item> itemList = List.of(testItem1, testItem2);
         Flux<Item> itemsFlux = Flux.fromIterable(itemList);
-        Mono<Long> countMono = Mono.just(2L);
 
         when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase(eq("test"), any(Pageable.class)))
                 .thenReturn(itemsFlux);
-        when(itemRepository.countByTitleOrDescriptionContainingIgnoreCase("test"))
-                .thenReturn(countMono);
 
         StepVerifier.create(itemService.getItems("test", pageable))
                 .expectNextMatches(page ->
-                        page.getContent().size() == 2 &&
-                                page.getTotalElements() == 2
+                        page.size() == 2
                 )
                 .verifyComplete();
     }
@@ -128,18 +120,11 @@ class ItemServiceTest {
     @Test
     void getItems_WithEmptyResult_ShouldReturnEmptyPage() {
         Flux<Item> itemsFlux = Flux.empty();
-        Mono<Long> countMono = Mono.just(0L);
-
         when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase(eq("nonexistent"), any(Pageable.class)))
                 .thenReturn(itemsFlux);
-        when(itemRepository.countByTitleOrDescriptionContainingIgnoreCase("nonexistent"))
-                .thenReturn(countMono);
 
         StepVerifier.create(itemService.getItems("nonexistent", pageable))
-                .expectNextMatches(page ->
-                        page.getContent().isEmpty() &&
-                                page.getTotalElements() == 0
-                )
+                .expectNextMatches(List::isEmpty)
                 .verifyComplete();
     }
 

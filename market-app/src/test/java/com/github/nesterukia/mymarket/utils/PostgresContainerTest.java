@@ -33,5 +33,9 @@ public class PostgresContainerTest {
         registry.add("spring.r2dbc.password", postgres::getPassword);
         registry.add("spring.r2dbc.pool.enabled", () -> "false");
         registry.add("spring.sql.init.mode", () -> "always");
+
+        registry.add("spring.data.redis.host", () -> "localhost");
+        registry.add("spring.data.redis.port", () -> 6379);
+        registry.add("spring.data.redis.password", () -> "");
     }
 }

@@ -1,6 +1,14 @@
 spring:
   application:
     name: my-market-app
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT}
+      password: ${SPRING_DATA_REDIS_PASSWORD}
+    cache:
+      redis:
+        time-to-live: PT5M
 
   r2dbc:
     url: ${SPRING_DATASOURCE_URL}

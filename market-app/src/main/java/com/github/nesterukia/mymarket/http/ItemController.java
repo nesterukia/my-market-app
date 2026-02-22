@@ -43,7 +43,6 @@ public class ItemController {
             @CookieValue(value = USER_ID_COOKIE, required = false) Long userId) {
 
         SortType sortType = SortType.valueOf(sort.toUpperCase());
-        log.debug("SortType meow: {}", sortType);
         Sort sortBy = switch (sortType) {
             case ALPHA  -> Sort.by(Sort.Direction.ASC, "title");
             case PRICE -> Sort.by(Sort.Direction.ASC, "price");
@@ -52,6 +51,7 @@ public class ItemController {
         Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, sortBy);
 
         return itemService.getItems(search, pageable)
+                .flatMap(items -> itemService.formItemsPage(items, search, pageable))
                 .flatMapIterable(Page::getContent)
                 .flatMap(item -> Mono.just(item).zipWith(
                         cartService.countCartItemsByUserIdAndItemId(userId, item.getId())
