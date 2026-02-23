@@ -1,6 +1,10 @@
 spring:
   application:
     name: my-market-app
+  r2dbc:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
   data:
     redis:
       host: ${SPRING_DATA_REDIS_HOST}
@@ -9,18 +13,10 @@ spring:
     cache:
       redis:
         time-to-live: PT5M
-
-  r2dbc:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
-
   thymeleaf:
     cache: false
-
 server:
   port: 8080
-
 logging:
   level:
     root: DEBUG

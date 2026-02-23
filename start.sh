@@ -1,6 +1,22 @@
 #!/bin/bash
 
+echo "Loading .env..."
+set -a
+source .env
+set +a
+
 docker-compose up --build -d
-cd market-app/src/main/resources/db/changelog
-chmod +x run_migrations.sh
-./run_migrations.sh "jdbc:postgresql://localhost:5432/my-market-db" "postgres" "postgres" "org.postgresql.Driver"
+
+chmod +x ./postgres-db/run_migrations.sh
+
+./postgres-db/run_migrations.sh "./market-app/src/main/resources/db/changelog/db.changelog-master.yaml" \
+  "jdbc:postgresql://localhost:5432/$MARKET_APP_POSTGRES_DB" \
+  "$MARKET_APP_POSTGRES_USER" \
+  "$MARKET_APP_POSTGRES_PASSWORD" \
+  "org.postgresql.Driver"
+
+./postgres-db/run_migrations.sh "./payment-service/src/main/resources/db/changelog/db.changelog-master.yaml" \
+  "jdbc:postgresql://localhost:5432/$PAYMENT_SERVICE_POSTGRES_DB" \
+  "$PAYMENT_SERVICE_POSTGRES_USER" \
+  "$PAYMENT_SERVICE_POSTGRES_PASSWORD" \
+  "org.postgresql.Driver"

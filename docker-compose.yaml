@@ -1,14 +1,12 @@
 services:
   postgres-db:
     image: postgres:16-alpine
-    container_name: my-market-postgres
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    container_name: my-postgres-db
+    env_file: .env
     ports:
       - "5432:5432"
     volumes:
+      - ./postgres-db/init/:/docker-entrypoint-initdb.d
       - my-market-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -21,8 +19,7 @@ services:
   redis-cache:
     image: redis:7.4.2-bookworm
     container_name: my-redis-cache
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    env_file: .env
     restart: always
     ports:
       - "6379:6379"
@@ -47,15 +44,24 @@ services:
         condition: service_healthy
       redis-cache:
         condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      SPRING_DATA_REDIS_HOST: ${SPRING_DATA_REDIS_HOST}
-      SPRING_DATA_REDIS_PORT: ${SPRING_DATA_REDIS_PORT}
-      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+    env_file: .env
     ports:
       - "8080:8080"
+    networks:
+      - my-market-network
+    restart: on-failure
+
+  my-payment-service:
+    build:
+      context: .
+      dockerfile: ./payment-service/Dockerfile
+    container_name: my-payment-service
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    env_file: .env
+    ports:
+      - "8081:8081"
     networks:
       - my-market-network
     restart: on-failure
