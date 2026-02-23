@@ -1,0 +1,84 @@
+databaseChangeLog:
+  - changeSet:
+      id: init-schema-001
+      author: nesterukia
+      preConditions:
+        - onFail: MARK_RAN
+          and:
+            - not:
+                tableExists:
+                  tableName: accounts
+            - not:
+                tableExists:
+                  tableName: transactions
+            - not:
+                tableExists:
+                  tableName: users
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: users_pkey
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+        - createTable:
+            tableName: accounts
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: items_pkey
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_accounts_user_id_users_id
+                    references: users(id)
+              - column:
+                  name: current_balance
+                  type: VARCHAR(2000)
+                  constraints:
+                    nullable: false
+        - createTable:
+            tableName: transactions
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: transactions_pkey
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_transactions_user_id_users_id
+                    references: users(id)
+              - column:
+                  name: account_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_transactions_account_id_accounts_id
+                    references: accounts(id)
+              - column:
+                  name: status
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
