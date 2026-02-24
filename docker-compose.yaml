@@ -45,6 +45,14 @@ services:
       redis-cache:
         condition: service_healthy
     env_file: .env
+    environment:
+      SPRING_DATASOURCE_URL: r2dbc:postgresql://postgres-db:5432/${MARKET_APP_POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${MARKET_APP_POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MARKET_APP_POSTGRES_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${MARKET_APP_SPRING_DATA_REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${MARKET_APP_SPRING_DATA_REDIS_PORT}
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      PAYMENT_SERVICE_BASE_URL: http://my-payment-service:8081
     ports:
       - "8080:8080"
     networks:
@@ -60,6 +68,10 @@ services:
       postgres-db:
         condition: service_healthy
     env_file: .env
+    environment:
+      SPRING_DATASOURCE_URL: r2dbc:postgresql://postgres-db:5432/${PAYMENT_SERVICE_POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${PAYMENT_SERVICE_POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${PAYMENT_SERVICE_POSTGRES_PASSWORD}
     ports:
       - "8081:8081"
     networks:
