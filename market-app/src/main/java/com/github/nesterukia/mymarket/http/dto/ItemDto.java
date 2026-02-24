@@ -1,4 +1,4 @@
-package com.github.nesterukia.mymarket.http.models;
+package com.github.nesterukia.mymarket.http.dto;
 
 import com.github.nesterukia.mymarket.domain.Item;
 
@@ -7,7 +7,7 @@ public record ItemDto(
         String title,
         String description,
         String imgPath,
-        Long price,
+        Double price,
         int count
 ) {
     public static ItemDto fromItem(Item item, int quantity) {

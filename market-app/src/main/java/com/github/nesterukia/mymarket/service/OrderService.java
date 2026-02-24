@@ -45,7 +45,6 @@ public class OrderService {
         Order orderFromCart = Order.builder()
                 .userId(cart.getUserId())
                 .build();
-
         return orderRepository.save(orderFromCart)
                 .flatMap(savedOrder -> saveOrderItems(savedOrder, cart));
     }

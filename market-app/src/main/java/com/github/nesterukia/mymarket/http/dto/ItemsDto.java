@@ -1,12 +1,10 @@
-package com.github.nesterukia.mymarket.http.models;
+package com.github.nesterukia.mymarket.http.dto;
 
-import com.github.nesterukia.mymarket.domain.Item;
 import com.github.nesterukia.mymarket.domain.SortType;
 import com.github.nesterukia.mymarket.utils.ItemUtils;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.data.domain.Page;
 
 import java.util.ArrayList;
 import java.util.List;

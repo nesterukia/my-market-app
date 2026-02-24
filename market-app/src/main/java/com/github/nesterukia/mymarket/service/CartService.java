@@ -2,13 +2,13 @@ package com.github.nesterukia.mymarket.service;
 
 import com.github.nesterukia.mymarket.dao.CartItemRepository;
 import com.github.nesterukia.mymarket.dao.CartRepository;
+import com.github.nesterukia.mymarket.dao.ItemRepository;
 import com.github.nesterukia.mymarket.domain.ActionType;
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.CartItem;
 import com.github.nesterukia.mymarket.domain.Item;
 import com.github.nesterukia.mymarket.domain.User;
 import com.github.nesterukia.mymarket.domain.exceptions.EntityNotFoundException;
-import com.github.nesterukia.mymarket.utils.EntityType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,11 +22,13 @@ import reactor.core.publisher.Mono;
 public class CartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
+    private final ItemRepository itemRepository;
 
     @Autowired
-    public CartService(CartRepository cartRepository, CartItemRepository cartItemRepository) {
+    public CartService(CartRepository cartRepository, CartItemRepository cartItemRepository, ItemRepository itemRepository) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
+        this.itemRepository = itemRepository;
     }
 
     public Mono<Cart> findByUserId(Long userId) {
@@ -47,6 +49,15 @@ public class CartService {
         };
     }
 
+    public Mono<Double> calculateTotalSum(Cart cart) {
+        return cartItemRepository.findAllByCartId(cart.getId())
+                .flatMap(cartItem -> itemRepository.findById(cartItem.getItemId())
+                            .map(Item::getPrice)
+                            .map(price -> price * cartItem.getQuantity())
+                )
+                .reduce(0.0, Double::sum);
+    }
+
     public Mono<Void> clearCartAndDelete(Cart cart) {
         return cartItemRepository.deleteAllByCartId(cart.getId()).then(cartRepository.delete(cart));
     }
@@ -62,17 +73,11 @@ public class CartService {
     }
 
     public Mono<Integer> countCartItemsByUserIdAndItemId(Long userId, Long itemId) {
-        if (userId == null) {
-            return Mono.just(0);
-        }
-
         return cartRepository.findByUserId(userId)
-                .switchIfEmpty(cartRepository.save(Cart.builder().userId(userId).build()))
                 .flatMap(cart -> cartItemRepository.findByCartIdAndItemId(cart.getId(), itemId))
                 .map(CartItem::getQuantity)
                 .switchIfEmpty(Mono.just(0));
     }
-
 
     private Mono<Void> increaseItemQuantityInCart(Cart cart, Item item) {
         return cartItemRepository.findByCartIdAndItemId(cart.getId(), item.getId())

@@ -48,7 +48,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: price
-                  type: BIGINT
+                  type: DOUBLE
                   constraints:
                     nullable: false
 

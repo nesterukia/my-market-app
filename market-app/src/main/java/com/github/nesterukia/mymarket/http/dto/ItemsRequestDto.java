@@ -1,4 +1,4 @@
-package com.github.nesterukia.mymarket.http.models;
+package com.github.nesterukia.mymarket.http.dto;
 
 
 public record ItemsRequestDto(

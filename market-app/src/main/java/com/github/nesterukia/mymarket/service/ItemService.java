@@ -5,7 +5,7 @@ import com.github.nesterukia.mymarket.dao.OrderItemRepository;
 import com.github.nesterukia.mymarket.domain.Item;
 import com.github.nesterukia.mymarket.domain.SortType;
 import com.github.nesterukia.mymarket.domain.exceptions.EntityNotFoundException;
-import com.github.nesterukia.mymarket.http.models.ItemDto;
+import com.github.nesterukia.mymarket.http.dto.ItemDto;
 import com.github.nesterukia.mymarket.utils.EntityType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +39,7 @@ public class ItemService {
 
     @Cacheable(value = "items:list", key = "'page:' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #search")
     public Mono<List<Item>> getItems(String search, Pageable pageable) {
-        Comparator<Item> byPriceAscending = Comparator.comparingLong(Item::getPrice);
+        Comparator<Item> byPriceAscending = Comparator.comparingDouble(Item::getPrice);
         Comparator<Item> byPriceDescending = byPriceAscending.reversed();
 
         Comparator<Item> byTitleAscending = Comparator.comparing(Item::getTitle);

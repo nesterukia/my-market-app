@@ -17,7 +17,7 @@ public interface CartItemRepository extends ReactiveCrudRepository<CartItem, Lon
     Mono<CartItem> findByCartIdAndItemId(@Param("cartId") Long cartId, @Param("itemId") Long itemId);
 
     @Modifying
-    @Query("DELETE FROM cart_item ci where ci.cart_id = :cartid")
+    @Query("DELETE FROM cart_item ci where ci.cart_id = :cartId")
     Mono<Void> deleteAllByCartId(@Param("cartId") Long cartId);
 
     Flux<CartItem> findAllByCartId(Long cartId);

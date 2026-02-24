@@ -1,7 +1,7 @@
 package com.github.nesterukia.mymarket.utils;
 
 import com.github.nesterukia.mymarket.domain.Item;
-import com.github.nesterukia.mymarket.http.models.ItemDto;
+import com.github.nesterukia.mymarket.http.dto.ItemDto;
 
 import java.util.List;
 
@@ -14,16 +14,16 @@ public class ItemUtils {
                 "MOCK",
                 "MOCK",
                 "MOCK_IMG_PATH",
-                -1L
+                -1.0
         ), 0);
     }
 
-    public static Long calculateTotalSum(List<ItemDto> listOfItemDtos) {
+    public static Double calculateTotalSum(List<ItemDto> listOfItemDtos) {
         if (listOfItemDtos.isEmpty()) {
-            return 0L;
+            return 0.0;
         } else {
             return listOfItemDtos.stream()
-                    .mapToLong(item -> item.count() * item.price())
+                    .mapToDouble(item -> item.count() * item.price())
                     .sum();
         }
     }
