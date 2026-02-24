@@ -16,8 +16,6 @@ import org.springframework.data.relational.core.mapping.Table;
 @RequiredArgsConstructor
 @AllArgsConstructor
 public class Account {
-    private static final Double BASE_BALANCE = 1000.0;
-
     @Id
     private Long id;
 
@@ -25,6 +23,5 @@ public class Account {
     private Long userId;
 
     @Column("current_balance")
-    @Builder.Default
-    private Double currentBalance = BASE_BALANCE;
+    private Double currentBalance;
 }

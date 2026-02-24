@@ -21,7 +21,6 @@ databaseChangeLog:
               - column:
                   name: id
                   type: BIGINT
-                  autoIncrement: true
                   constraints:
                     nullable: false
                     primaryKey: true
@@ -29,14 +28,14 @@ databaseChangeLog:
               - column:
                   name: created_at
                   type: TIMESTAMP
-                  constraints:
-                    nullable: false
+                  defaultValueComputed: CURRENT_TIMESTAMP
         - createTable:
             tableName: accounts
             columns:
               - column:
                   name: id
                   type: BIGINT
+                  autoIncrement: true
                   constraints:
                     nullable: false
                     primaryKey: true
@@ -50,7 +49,8 @@ databaseChangeLog:
                     references: users(id)
               - column:
                   name: current_balance
-                  type: VARCHAR(2000)
+                  type: DOUBLE
+                  defaultValue: 1000.0
                   constraints:
                     nullable: false
         - createTable:

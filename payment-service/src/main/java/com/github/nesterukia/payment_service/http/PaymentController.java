@@ -4,15 +4,14 @@ import com.github.nesterukia.payment_service.http.dto.PaymentRequest;
 import com.github.nesterukia.payment_service.http.dto.TransactionInfo;
 import com.github.nesterukia.payment_service.service.PaymentService;
 import com.github.nesterukia.payment_service.service.UserService;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
-@Controller
-@RequestMapping("/api/payment")
+@RestController
 public class PaymentController {
     private final PaymentService paymentService;
     private final UserService userService;
@@ -22,13 +21,20 @@ public class PaymentController {
         this.userService = userService;
     }
 
-    @PostMapping
-    public Mono<TransactionInfo> commitPayment(@RequestBody PaymentRequest paymentRequest) {
+    @PostMapping(value = "/api/payment")
+    public Mono<ResponseEntity<TransactionInfo>> commitPayment(@RequestBody PaymentRequest paymentRequest) {
         return userService.findById(paymentRequest.userId())
                 .flatMap(user -> paymentService.commitPayment(user.getId(), paymentRequest.amount()))
-                .map(transaction -> new TransactionInfo(
-                        transaction.getId().toString(),
-                        transaction.getStatus().getMessage()
-                ));
+                .map(transaction -> {
+                    HttpStatus status = switch (transaction.getStatus()) {
+                        case SUCCESS -> HttpStatus.OK;
+                        case ERROR -> HttpStatus.FORBIDDEN;
+                    };
+                    return ResponseEntity.status(status)
+                            .body(new TransactionInfo(
+                                    transaction.getId().toString(),
+                                    transaction.getStatus().getMessage()
+                            ));
+                });
     }
 }

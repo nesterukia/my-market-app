@@ -17,11 +17,24 @@ public class UserService {
     private UserRepository userRepository;
 
     public Mono<User> findById(Long userId) {
-        return userRepository.findById(userId).switchIfEmpty(create(userId));
+        log.info("Finding user by ID: {}", userId);
+        return userRepository.findById(userId)
+                .doOnNext(user -> log.info("User FOUND: {}", user.getId()))
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.info("User NOT FOUND, creating: {}", userId);
+                    return create(userId);
+                }))
+                .doOnSuccess(user -> log.info("Returning user: {}", user.getId()));
     }
 
     private Mono<User> create(Long userId) {
-        log.debug("UserService: new user with id='{}' created", userId);
-        return userRepository.save(User.builder().id(userId).build());
+        log.warn("CREATING user with ID: {}", userId);
+        User user = User.builder()
+                .id(userId)
+                .build();
+
+        return userRepository.save(user)
+                .doOnSuccess(saved -> log.info("SAVED user: {}", saved.getId()))
+                .doOnError(err -> log.error("SAVE ERROR: ", err));
     }
 }

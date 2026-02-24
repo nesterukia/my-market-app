@@ -6,21 +6,21 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.util.UUID;
 
-@Table(name = "accounts")
+@Table(name = "transactions")
 @Getter
 @Setter
 @Builder
 @RequiredArgsConstructor
 @AllArgsConstructor
-public class Transaction {
-    @Builder.Default
+public class Transaction implements Persistable<UUID> {
     @Id
-    private UUID id = UUID.randomUUID();
+    private UUID id;
 
     @Column("user_id")
     private Long userId;
@@ -30,4 +30,9 @@ public class Transaction {
 
     @Column("status")
     private Status status;
+
+    @Override
+    public boolean isNew() {
+        return true;
+    }
 }
