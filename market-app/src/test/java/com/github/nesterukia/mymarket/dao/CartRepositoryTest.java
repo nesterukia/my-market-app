@@ -2,7 +2,7 @@ package com.github.nesterukia.mymarket.dao;
 
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.User;
-import com.github.nesterukia.mymarket.utils.PostgresContainerTest;
+import com.github.nesterukia.mymarket.utils.CachedDbContainerTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,7 +11,7 @@ import reactor.test.StepVerifier;
 
 
 @SpringBootTest
-class CartRepositoryTest extends PostgresContainerTest {
+class CartRepositoryTest extends CachedDbContainerTest {
 
     @Autowired
     private CartRepository cartRepository;

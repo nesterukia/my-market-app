@@ -1,7 +1,7 @@
 package com.github.nesterukia.mymarket.dao;
 
 import com.github.nesterukia.mymarket.domain.Item;
-import com.github.nesterukia.mymarket.utils.PostgresContainerTest;
+import com.github.nesterukia.mymarket.utils.CachedDbContainerTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +14,7 @@ import reactor.test.StepVerifier;
 import java.util.List;
 
 @SpringBootTest
-public class ItemRepositoryTest extends PostgresContainerTest {
+public class ItemRepositoryTest extends CachedDbContainerTest {
 
     @Autowired
     private ItemRepository itemRepository;
@@ -34,21 +34,21 @@ public class ItemRepositoryTest extends PostgresContainerTest {
                 .title("Smartphone iPhone 13")
                 .description("Latest Apple smartphone with A15 chip")
                 .imgPath("/images/iphone13.jpg")
-                .price(999L)
+                .price(999.0)
                 .build();
 
         Item item2 = Item.builder()
                 .title("Samsung Galaxy S21")
                 .description("Android smartphone with great camera")
                 .imgPath("/images/samsung21.jpg")
-                .price(899L)
+                .price(899.0)
                 .build();
 
         Item item3 = Item.builder()
                 .title("MacBook Pro")
                 .description("Powerful laptop for developers")
                 .imgPath("/images/macbook.jpg")
-                .price(1999L)
+                .price(1999.0)
                 .build();
 
         Flux<Item> saveAll = itemRepository.saveAll(List.of(item1, item2, item3));
@@ -72,7 +72,7 @@ public class ItemRepositoryTest extends PostgresContainerTest {
                 .title("Test Item")
                 .description("Test Description")
                 .imgPath("/images/test.jpg")
-                .price(100L)
+                .price(100.0)
                 .build();
 
         Mono<Item> saveItem = itemRepository.save(item);
@@ -88,7 +88,7 @@ public class ItemRepositoryTest extends PostgresContainerTest {
                 .title("GAMING LAPTOP")
                 .description("HIGH PERFORMANCE FOR GAMES")
                 .imgPath("/images/gaming.jpg")
-                .price(1500L)
+                .price(1500.0)
                 .build();
 
         Mono<Item> saveItem = itemRepository.save(item);
@@ -108,21 +108,21 @@ public class ItemRepositoryTest extends PostgresContainerTest {
                 .title("Wireless Mouse")
                 .description("Ergonomic wireless mouse for work")
                 .imgPath("/images/mouse.jpg")
-                .price(50L)
+                .price(50.0)
                 .build();
 
         Item item2 = Item.builder()
                 .title("Mechanical Keyboard")
                 .description("RGB mechanical keyboard for gaming")
                 .imgPath("/images/keyboard.jpg")
-                .price(120L)
+                .price(120.0)
                 .build();
 
         Item item3 = Item.builder()
                 .title("Mouse Pad")
                 .description("Large gaming mouse pad")
                 .imgPath("/images/mousepad.jpg")
-                .price(25L)
+                .price(25.0)
                 .build();
 
         Flux<Item> saveAll = itemRepository.saveAll(List.of(item1, item2, item3));
@@ -142,11 +142,11 @@ public class ItemRepositoryTest extends PostgresContainerTest {
 
     @Test
     void findByTitleOrDescriptionContainingIgnoreCase_ShouldRespectPagination() {
-        Item item1 = Item.builder().title("Product A").description("First product").imgPath("/img/a.jpg").price(10L).build();
-        Item item2 = Item.builder().title("Product B").description("Second product").imgPath("/img/b.jpg").price(20L).build();
-        Item item3 = Item.builder().title("Product C").description("Third product").imgPath("/img/c.jpg").price(30L).build();
-        Item item4 = Item.builder().title("Product D").description("Fourth product").imgPath("/img/d.jpg").price(40L).build();
-        Item item5 = Item.builder().title("Product E").description("Fifth product").imgPath("/img/e.jpg").price(50L).build();
+        Item item1 = Item.builder().title("Product A").description("First product").imgPath("/img/a.jpg").price(10.0).build();
+        Item item2 = Item.builder().title("Product B").description("Second product").imgPath("/img/b.jpg").price(20.0).build();
+        Item item3 = Item.builder().title("Product C").description("Third product").imgPath("/img/c.jpg").price(30.0).build();
+        Item item4 = Item.builder().title("Product D").description("Fourth product").imgPath("/img/d.jpg").price(40.0).build();
+        Item item5 = Item.builder().title("Product E").description("Fifth product").imgPath("/img/e.jpg").price(50.0).build();
 
         Flux<Item> saveAll = itemRepository.saveAll(List.of(item1, item2, item3, item4, item5));
 

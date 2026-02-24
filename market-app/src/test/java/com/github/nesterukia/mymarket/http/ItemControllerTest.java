@@ -1,21 +1,23 @@
 package com.github.nesterukia.mymarket.http;
 
-import com.github.nesterukia.mymarket.dao.CartRepository;
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.Item;
 import com.github.nesterukia.mymarket.domain.User;
 import com.github.nesterukia.mymarket.service.CartService;
 import com.github.nesterukia.mymarket.service.ItemService;
+import com.github.nesterukia.mymarket.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webflux.test.autoconfigure.WebFluxTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -31,6 +33,9 @@ class ItemControllerTest {
 
     @Autowired
     private WebTestClient webTestClient;
+
+    @MockitoBean
+    private UserService userService;
 
     @MockitoBean
     private ItemService itemService;
@@ -57,7 +62,7 @@ class ItemControllerTest {
                 .title("Test Item 1")
                 .description("Description 1")
                 .imgPath("/img1.jpg")
-                .price(100L)
+                .price(100.0)
                 .build();
 
         testItem2 = Item.builder()
@@ -65,7 +70,7 @@ class ItemControllerTest {
                 .title("Test Item 2")
                 .description("Description 2")
                 .imgPath("/img2.jpg")
-                .price(200L)
+                .price(200.0)
                 .build();
 
         testItem3 = Item.builder()
@@ -73,7 +78,7 @@ class ItemControllerTest {
                 .title("Test Item 3")
                 .description("Description 3")
                 .imgPath("/img3.jpg")
-                .price(300L)
+                .price(300.0)
                 .build();
 
         testItem4 = Item.builder()
@@ -81,7 +86,7 @@ class ItemControllerTest {
                 .title("Test Item 4")
                 .description("Description 4")
                 .imgPath("/img4.jpg")
-                .price(400L)
+                .price(400.0)
                 .build();
 
         testItem5 = Item.builder()
@@ -89,7 +94,7 @@ class ItemControllerTest {
                 .title("Test Item 5")
                 .description("Description 5")
                 .imgPath("/img5.jpg")
-                .price(500L)
+                .price(500.0)
                 .build();
 
         testItems = List.of(testItem1, testItem2, testItem3, testItem4, testItem5);
@@ -97,22 +102,31 @@ class ItemControllerTest {
 
     @Test
     void getItems_ShouldReturnItemsViewWithDefaultParameters() {
-        Page<Item> itemPage = new PageImpl<>(testItems.subList(0, 5), Pageable.ofSize(5), 5);
+        List<Item> itemsList = testItems;
+        Pageable testPageable = Pageable.ofSize(5);
+        Page<Item> itemPage = new PageImpl<>(itemsList, testPageable, 5);
 
         when(itemService.getItems(eq(""), any(Pageable.class)))
-                .thenReturn(Mono.just(testItems.subList(0, 5)));
-        when(itemService.formItemsPage(any(), any(String.class), any(Pageable.class)))
+                .thenReturn(Mono.just(itemsList));
+
+        when(itemService.formItemsPage(eq(itemsList), eq(""), any(Pageable.class)))
                 .thenReturn(Mono.just(itemPage));
 
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
+        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class)))
+                .thenReturn(Mono.just(testUser));
+
+        when(cartService.findByUserId(eq(testUser.getId())))
+                .thenReturn(Mono.just(testCart));
+
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(1L)))
                 .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(2L)))
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(2L)))
                 .thenReturn(Mono.just(2));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(3L)))
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(3L)))
                 .thenReturn(Mono.just(1));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(4L)))
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(4L)))
                 .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(5L)))
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(5L)))
                 .thenReturn(Mono.just(3));
 
         webTestClient.get()
@@ -131,25 +145,23 @@ class ItemControllerTest {
                 });
     }
 
+
     @Test
     void getItems_ShouldReturnItemsViewWithSearchParameter() {
-        Page<Item> itemPage = new PageImpl<>(List.of(testItem1, testItem2), Pageable.ofSize(5), 2);
+        List<Item> itemsList = List.of(testItem1, testItem2);
+        Page<Item> itemPage = new PageImpl<>(itemsList, Pageable.ofSize(5), 2);
 
         when(itemService.getItems(eq("test"), any(Pageable.class)))
-                .thenReturn(Mono.just(List.of(testItem1, testItem2)));
-        when(itemService.formItemsPage(any(), any(String.class), any(Pageable.class)))
+                .thenReturn(Mono.just(itemsList));
+        when(itemService.formItemsPage(eq(itemsList), eq("test"), any(Pageable.class)))
                 .thenReturn(Mono.just(itemPage));
-
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
-                .thenReturn(Mono.just(1));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(2L)))
-                .thenReturn(Mono.just(0));
+        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
+        when(cartService.findByUserId(eq(testUser.getId()))).thenReturn(Mono.just(testCart));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(1L))).thenReturn(Mono.just(1));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(2L))).thenReturn(Mono.just(0));
 
         webTestClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/items")
-                        .queryParam("search", "test")
-                        .build())
+                .uri(uriBuilder -> uriBuilder.path("/items").queryParam("search", "test").build())
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -164,29 +176,23 @@ class ItemControllerTest {
 
     @Test
     void getItems_ShouldReturnItemsViewWithAlphaSort() {
-        Page<Item> itemPage = new PageImpl<>(testItems.subList(0, 5), Pageable.ofSize(5), 5);
+        List<Item> itemsList = testItems.subList(0, 5);
+        Pageable testPageable = PageRequest.of(0, 5, Sort.by(Sort.Direction.ASC, "title"));
+        Page<Item> itemPage = new PageImpl<>(itemsList, testPageable, 5);
 
-        when(itemService.getItems(eq(""), any(Pageable.class)))
-                .thenReturn(Mono.just(testItems.subList(0, 5)));
-        when(itemService.formItemsPage(any(), any(String.class), any(Pageable.class)))
-                .thenReturn(Mono.just(itemPage));
-
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
-                .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(2L)))
-                .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(3L)))
-                .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(4L)))
-                .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(5L)))
-                .thenReturn(Mono.just(0));
+        when(itemService.getItems(eq(""), any(Pageable.class))).thenReturn(Mono.just(itemsList));
+        when(itemService.formItemsPage(eq(itemsList), eq(""), any(Pageable.class))).thenReturn(Mono.just(itemPage));
+        when(userService.getOrCreate(eq(1L), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
+        when(cartService.findByUserId(eq(testUser.getId()))).thenReturn(Mono.just(testCart));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(1L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(2L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(3L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(4L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(5L))).thenReturn(Mono.just(0));
 
         webTestClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/items")
-                        .queryParam("sort", "ALPHA")
-                        .build())
+                .uri(uriBuilder -> uriBuilder.path("/items").queryParam("sort", "ALPHA").build())
+                .cookie("user_id", "1")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -198,30 +204,22 @@ class ItemControllerTest {
 
     @Test
     void getItems_ShouldReturnItemsViewWithPriceSort() {
-        Page<Item> itemPage = new PageImpl<>(testItems.subList(0, 5), Pageable.ofSize(5), 5);
+        List<Item> itemsList = testItems.subList(0, 5);
+        Pageable testPageable = PageRequest.of(0, 5, Sort.by(Sort.Direction.ASC, "price"));
+        Page<Item> itemPage = new PageImpl<>(itemsList, testPageable, 5);
 
-        when(itemService.getItems(eq(""), any(Pageable.class)))
-                .thenReturn(Mono.just(testItems.subList(0, 5)));
-
-        when(itemService.formItemsPage(any(), any(String.class), any(Pageable.class)))
-                .thenReturn(Mono.just(itemPage));
-
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
-                .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(2L)))
-                .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(3L)))
-                .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(4L)))
-                .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(5L)))
-                .thenReturn(Mono.just(0));
+        when(itemService.getItems(eq(""), any(Pageable.class))).thenReturn(Mono.just(itemsList));
+        when(itemService.formItemsPage(eq(itemsList), eq(""), any(Pageable.class))).thenReturn(Mono.just(itemPage));
+        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
+        when(cartService.findByUserId(eq(testUser.getId()))).thenReturn(Mono.just(testCart));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(1L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(2L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(3L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(4L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(5L))).thenReturn(Mono.just(0));
 
         webTestClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/items")
-                        .queryParam("sort", "PRICE")
-                        .build())
+                .uri(uriBuilder -> uriBuilder.path("/items").queryParam("sort", "PRICE").build())
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -233,27 +231,20 @@ class ItemControllerTest {
 
     @Test
     void getItems_ShouldReturnItemsViewWithPaginationParameters() {
-        Page<Item> itemPage = new PageImpl<>(testItems.subList(2, 5), Pageable.ofSize(3).withPage(1), 5);
+        List<Item> itemsList = testItems.subList(2, 5);
+        Pageable testPageable = Pageable.ofSize(3).withPage(1);
+        Page<Item> itemPage = new PageImpl<>(itemsList, testPageable, 5);
 
-        when(itemService.getItems(eq(""), any(Pageable.class)))
-                .thenReturn(Mono.just(testItems.subList(2, 5)));
-
-        when(itemService.formItemsPage(any(), any(String.class), any(Pageable.class)))
-                .thenReturn(Mono.just(itemPage));
-
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(3L)))
-                .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(4L)))
-                .thenReturn(Mono.just(2));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(5L)))
-                .thenReturn(Mono.just(1));
+        when(itemService.getItems(eq(""), any(Pageable.class))).thenReturn(Mono.just(itemsList));
+        when(itemService.formItemsPage(eq(itemsList), eq(""), any(Pageable.class))).thenReturn(Mono.just(itemPage));
+        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
+        when(cartService.findByUserId(eq(testUser.getId()))).thenReturn(Mono.just(testCart));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(3L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(4L))).thenReturn(Mono.just(2));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(5L))).thenReturn(Mono.just(1));
 
         webTestClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/items")
-                        .queryParam("pageNumber", 2)
-                        .queryParam("pageSize", 3)
-                        .build())
+                .uri(uriBuilder -> uriBuilder.path("/items").queryParam("pageNumber", 2).queryParam("pageSize", 3).build())
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -269,24 +260,19 @@ class ItemControllerTest {
 
     @Test
     void getItems_ShouldHandleRootPath() {
-        Page<Item> itemPage = new PageImpl<>(testItems.subList(0, 5), Pageable.ofSize(5), 5);
+        List<Item> itemsList = testItems.subList(0, 5);
+        Pageable testPageable = Pageable.ofSize(5);
+        Page<Item> itemPage = new PageImpl<>(itemsList, testPageable, 5);
 
-        when(itemService.getItems(eq(""), any(Pageable.class)))
-                .thenReturn(Mono.just(testItems.subList(0, 5)));
-
-        when(itemService.formItemsPage(any(), any(String.class), any(Pageable.class)))
-                .thenReturn(Mono.just(itemPage));
-
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(1L)))
-                .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(2L)))
-                .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(3L)))
-                .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(4L)))
-                .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(5L)))
-                .thenReturn(Mono.just(0));
+        when(itemService.getItems(eq(""), any(Pageable.class))).thenReturn(Mono.just(itemsList));
+        when(itemService.formItemsPage(eq(itemsList), eq(""), any(Pageable.class))).thenReturn(Mono.just(itemPage));
+        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
+        when(cartService.findByUserId(eq(testUser.getId()))).thenReturn(Mono.just(testCart));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(1L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(2L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(3L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(4L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(5L))).thenReturn(Mono.just(0));
 
         webTestClient.get()
                 .uri("/")
@@ -301,12 +287,9 @@ class ItemControllerTest {
     @Test
     void getItemById_ShouldReturnItemView() {
         Long itemId = 1L;
-
-        when(itemService.getItemById(itemId))
-                .thenReturn(Mono.just(testItem1));
-
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(itemId)))
-                .thenReturn(Mono.just(2));
+        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
+        when(itemService.getItemById(itemId)).thenReturn(Mono.just(testItem1));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(itemId))).thenReturn(Mono.just(2));
 
         webTestClient.get()
                 .uri("/items/{id}", itemId)
@@ -326,12 +309,9 @@ class ItemControllerTest {
     @Test
     void getItemById_ShouldHandleZeroQuantity() {
         Long itemId = 1L;
-
-        when(itemService.getItemById(itemId))
-                .thenReturn(Mono.just(testItem1));
-
-        when(cartService.countCartItemsByUserIdAndItemId(isNull(), eq(itemId)))
-                .thenReturn(Mono.just(0));
+        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
+        when(itemService.getItemById(itemId)).thenReturn(Mono.just(testItem1));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(itemId))).thenReturn(Mono.just(0));
 
         webTestClient.get()
                 .uri("/items/{id}", itemId)

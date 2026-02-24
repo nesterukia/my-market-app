@@ -3,7 +3,7 @@ package com.github.nesterukia.mymarket.service;
 import com.github.nesterukia.mymarket.dao.ItemRepository;
 import com.github.nesterukia.mymarket.dao.OrderItemRepository;
 import com.github.nesterukia.mymarket.domain.Item;
-import com.github.nesterukia.mymarket.utils.RedisContainerTest;
+import com.github.nesterukia.mymarket.utils.CachedDbContainerTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,7 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest
-public class ItemServiceCacheTest extends RedisContainerTest {
+public class ItemServiceCacheTest extends CachedDbContainerTest {
 
     @MockitoBean
     private ItemRepository itemRepository;
@@ -36,6 +36,9 @@ public class ItemServiceCacheTest extends RedisContainerTest {
     @Autowired
     private ItemService itemService;
 
+    @MockitoBean
+    private PaymentService paymentService;
+
     @Test
     void getItemById_cacheHit_returnsCachedItem() {
         Long itemId = 1L;
@@ -44,7 +47,7 @@ public class ItemServiceCacheTest extends RedisContainerTest {
                 .title("Test Item")
                 .description("Test Description")
                 .imgPath("/img/test.jpg")
-                .price(1000L)
+                .price(1000.0)
                 .build();
         when(itemRepository.findById(eq(itemId))).thenReturn(Mono.just(testItem));
 
@@ -66,7 +69,7 @@ public class ItemServiceCacheTest extends RedisContainerTest {
                         .id(i)
                         .title("Item " + i)
                         .description("Description " + i)
-                        .price(1000 + i)
+                        .price(1000.0 + i)
                         .imgPath("/fake/path")
                         .build()
                 ).toList();
@@ -96,8 +99,8 @@ public class ItemServiceCacheTest extends RedisContainerTest {
 
     @Test
     void getItems_cacheMissOnSearchChange() {
-        Item appleIPhone = Item.builder().id(1L).title("Apple iPhone").price(999L).build();
-        Item samsungGalaxy = Item.builder().id(2L).title("Samsung Galaxy").price(899L).build();
+        Item appleIPhone = Item.builder().id(1L).title("Apple iPhone").price(999.0).build();
+        Item samsungGalaxy = Item.builder().id(2L).title("Samsung Galaxy").price(899.0).build();
         Pageable firstPage = PageRequest.of(0, 10);
 
         when(itemRepository.findByTitleOrDescriptionContainingIgnoreCase(eq("iphone"), eq(firstPage)))
@@ -122,7 +125,7 @@ public class ItemServiceCacheTest extends RedisContainerTest {
                 .id(999L)
                 .title("New Cached Item")
                 .description("Fresh from DB")
-                .price(500L)
+                .price(500.0)
                 .build();
 
         Pageable pageable = PageRequest.of(0, 20);

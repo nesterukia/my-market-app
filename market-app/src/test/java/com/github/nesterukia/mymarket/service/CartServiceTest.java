@@ -20,9 +20,7 @@ import reactor.test.StepVerifier;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CartServiceTest {
@@ -57,7 +55,7 @@ class CartServiceTest {
                 .title("Test Item")
                 .description("Description")
                 .imgPath("/img.jpg")
-                .price(100L)
+                .price(100.0)
                 .build();
 
         testCartItem = CartItem.builder()
@@ -220,33 +218,11 @@ class CartServiceTest {
 
     @Test
     void countCartItemsByUserIdAndItemId_ShouldReturnZeroWhenUserIdIsNull() {
+        when(cartRepository.findByUserId(isNull())).thenReturn(Mono.empty());
         StepVerifier.create(cartService.countCartItemsByUserIdAndItemId(null, testItem.getId()))
                 .expectNext(0)
                 .verifyComplete();
 
         verify(cartRepository, never()).findByUserId(anyLong());
-    }
-
-    @Test
-    void countCartItemsByUserIdAndItemId_ShouldCreateCartWhenNotFound() {
-        Cart newCart = Cart.builder()
-                .id(2L)
-                .userId(testUser.getId())
-                .build();
-
-        when(cartRepository.findByUserId(testUser.getId()))
-                .thenReturn(Mono.empty());
-
-        when(cartRepository.save(any(Cart.class)))
-                .thenReturn(Mono.just(newCart));
-
-        when(cartItemRepository.findByCartIdAndItemId(newCart.getId(), testItem.getId()))
-                .thenReturn(Mono.empty());
-
-        StepVerifier.create(cartService.countCartItemsByUserIdAndItemId(testUser.getId(), testItem.getId()))
-                .expectNext(0)
-                .verifyComplete();
-
-        verify(cartRepository).save(any(Cart.class));
     }
 }

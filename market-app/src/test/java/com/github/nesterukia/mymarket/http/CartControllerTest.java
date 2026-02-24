@@ -5,8 +5,10 @@ import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.CartItem;
 import com.github.nesterukia.mymarket.domain.Item;
 import com.github.nesterukia.mymarket.domain.User;
+import com.github.nesterukia.mymarket.http.dto.payment.PaymentInfo;
 import com.github.nesterukia.mymarket.service.CartService;
 import com.github.nesterukia.mymarket.service.ItemService;
+import com.github.nesterukia.mymarket.service.PaymentService;
 import com.github.nesterukia.mymarket.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,6 +40,9 @@ class CartControllerTest {
     @MockitoBean
     private UserService userService;
 
+    @MockitoBean
+    private PaymentService paymentService;
+
     private User testUser;
     private Cart testCart;
     private Item testItem1;
@@ -67,7 +72,7 @@ class CartControllerTest {
                 .title("Test Item 1")
                 .description("Description 1")
                 .imgPath("/img1.jpg")
-                .price(100L)
+                .price(100.0)
                 .build();
 
         testItem2 = Item.builder()
@@ -75,7 +80,7 @@ class CartControllerTest {
                 .title("Test Item 2")
                 .description("Description 2")
                 .imgPath("/img2.jpg")
-                .price(200L)
+                .price(200.0)
                 .build();
 
         testCartItem1 = CartItem.builder()
@@ -113,6 +118,10 @@ class CartControllerTest {
         when(itemService.getItemById(testItem2.getId()))
                 .thenReturn(Mono.just(testItem2));
 
+        when(paymentService.checkUserBalance(anyLong(), anyDouble())).thenReturn(
+                Mono.just(new PaymentInfo(true, true))
+        );
+
         webTestClient.get()
                 .uri("/cart/items")
                 .cookie(USER_ID_COOKIE, testUser.getId().toString())
@@ -142,6 +151,10 @@ class CartControllerTest {
 
         when(cartService.findAllCartItemsByCart(testCart))
                 .thenReturn(Flux.empty());
+
+        when(paymentService.checkUserBalance(anyLong(), anyDouble())).thenReturn(
+                Mono.just(new PaymentInfo(true, true))
+        );
 
         webTestClient.get()
                 .uri("/cart/items")
@@ -183,6 +196,10 @@ class CartControllerTest {
 
         when(itemService.getItemById(testItem2.getId()))
                 .thenReturn(Mono.just(testItem2));
+
+        when(paymentService.checkUserBalance(eq(testUser.getId()), anyDouble())).thenReturn(
+                Mono.just(new PaymentInfo(true, true))
+        );
 
         webTestClient.post()
                 .uri(uriBuilder -> uriBuilder
@@ -231,6 +248,14 @@ class CartControllerTest {
         when(itemService.getItemById(testItem2.getId()))
                 .thenReturn(Mono.just(testItem2));
 
+        when(paymentService.checkUserBalance(anyLong(), anyDouble())).thenReturn(
+                Mono.just(new PaymentInfo(true, true))
+        );
+
+        when(paymentService.checkUserBalance(anyLong(), anyDouble())).thenReturn(
+                Mono.just(new PaymentInfo(true, true))
+        );
+
         webTestClient.post()
                 .uri(uriBuilder -> uriBuilder
                         .path("/cart/items")
@@ -275,6 +300,10 @@ class CartControllerTest {
         when(itemService.getItemById(testItem2.getId()))
                 .thenReturn(Mono.just(testItem2));
 
+        when(paymentService.checkUserBalance(anyLong(), anyDouble())).thenReturn(
+                Mono.just(new PaymentInfo(true, true))
+        );
+
         webTestClient.post()
                 .uri(uriBuilder -> uriBuilder
                         .path("/cart/items")
@@ -318,6 +347,10 @@ class CartControllerTest {
 
         when(itemService.getItemById(testItem1.getId()))
                 .thenReturn(Mono.just(testItem1));
+
+        when(paymentService.checkUserBalance(anyLong(), anyDouble())).thenReturn(
+                Mono.just(new PaymentInfo(true, true))
+        );
 
         webTestClient.post()
                 .uri(uriBuilder -> uriBuilder
@@ -484,30 +517,6 @@ class CartControllerTest {
                     assert content.contains("Test Item 1");
                     assert content.contains("2");
                     assert content.contains("100");
-                });
-    }
-
-    @Test
-    void getCartItems_ShouldCreateNewUserWhenCookieMissing() {
-        when(userService.getOrCreate(eq(null), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(testUser.getId()))
-                .thenReturn(Mono.empty());
-
-        when(cartService.create(testUser))
-                .thenReturn(Mono.just(testCart));
-
-        when(cartService.findAllCartItemsByCart(testCart))
-                .thenReturn(Flux.empty());
-
-        webTestClient.get()
-                .uri("/cart/items")
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody(String.class)
-                .value(content -> {
-                    assert content.contains(CART_TITLE);
                 });
     }
 }

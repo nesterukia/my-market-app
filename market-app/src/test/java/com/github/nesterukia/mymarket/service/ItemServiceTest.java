@@ -48,7 +48,7 @@ class ItemServiceTest {
                 .title("Test Item 1")
                 .description("Description 1")
                 .imgPath("/img1.jpg")
-                .price(100L)
+                .price(100.0)
                 .build();
 
         testItem2 = Item.builder()
@@ -56,7 +56,7 @@ class ItemServiceTest {
                 .title("Test Item 2")
                 .description("Description 2")
                 .imgPath("/img2.jpg")
-                .price(200L)
+                .price(200.0)
                 .build();
 
         testItem3 = Item.builder()
@@ -64,7 +64,7 @@ class ItemServiceTest {
                 .title("Test Item 3")
                 .description("Description 3")
                 .imgPath("/img3.jpg")
-                .price(300L)
+                .price(300.0)
                 .build();
 
         testOrderItem1 = OrderItem.builder()

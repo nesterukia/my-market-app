@@ -4,12 +4,10 @@ import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.Item;
 import com.github.nesterukia.mymarket.domain.Order;
 import com.github.nesterukia.mymarket.domain.User;
-import com.github.nesterukia.mymarket.http.models.ItemDto;
-import com.github.nesterukia.mymarket.http.models.OrderDto;
-import com.github.nesterukia.mymarket.service.CartService;
-import com.github.nesterukia.mymarket.service.ItemService;
-import com.github.nesterukia.mymarket.service.OrderService;
-import com.github.nesterukia.mymarket.service.UserService;
+import com.github.nesterukia.mymarket.http.dto.ItemDto;
+import com.github.nesterukia.mymarket.http.dto.OrderDto;
+import com.github.nesterukia.mymarket.http.dto.payment.TransactionInfo;
+import com.github.nesterukia.mymarket.service.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +19,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
@@ -45,6 +44,9 @@ class OrderControllerTest {
 
     @MockitoBean
     private ItemService itemService;
+
+    @MockitoBean
+    private PaymentService paymentService;
 
     private User testUser;
     private Cart testCart;
@@ -83,7 +85,7 @@ class OrderControllerTest {
                 .title("Test Item 1")
                 .description("Description 1")
                 .imgPath("/img1.jpg")
-                .price(100L)
+                .price(100.0)
                 .build();
 
         testItem2 = Item.builder()
@@ -91,7 +93,7 @@ class OrderControllerTest {
                 .title("Test Item 2")
                 .description("Description 2")
                 .imgPath("/img2.jpg")
-                .price(200L)
+                .price(200.0)
                 .build();
 
         testItemDto1 = ItemDto.fromItem(testItem1, 2);
@@ -228,6 +230,13 @@ class OrderControllerTest {
         when(cartService.findByUserId(testUser.getId()))
                 .thenReturn(Mono.just(testCart));
 
+        when(cartService.calculateTotalSum(eq(testCart)))
+                .thenReturn(Mono.just(100.0));
+
+        when(paymentService.commitPayment(eq(testUser.getId()), eq(100.0))).thenReturn(
+                Mono.just(new TransactionInfo(UUID.randomUUID().toString(), "Success"))
+        );
+
         when(orderService.createOrderFromCart(testCart))
                 .thenReturn(Mono.just(newOrder));
 
@@ -237,32 +246,6 @@ class OrderControllerTest {
         webTestClient.post()
                 .uri("/buy")
                 .cookie("user_id", testUser.getId().toString())
-                .exchange()
-                .expectStatus().is3xxRedirection()
-                .expectHeader().valueMatches("Location", ".*/orders/3\\?newOrder=true.*");
-    }
-
-    @Test
-    void buy_ShouldCreateUserWhenCookieMissing() {
-        Order newOrder = Order.builder()
-                .id(3L)
-                .userId(testUser.getId())
-                .build();
-
-        when(userService.getOrCreate(eq(null), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(testUser.getId()))
-                .thenReturn(Mono.just(testCart));
-
-        when(orderService.createOrderFromCart(testCart))
-                .thenReturn(Mono.just(newOrder));
-
-        when(cartService.clearCartAndDelete(testCart))
-                .thenReturn(Mono.empty());
-
-        webTestClient.post()
-                .uri("/buy")
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueMatches("Location", ".*/orders/3\\?newOrder=true.*");

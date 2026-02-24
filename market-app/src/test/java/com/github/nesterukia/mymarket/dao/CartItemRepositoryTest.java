@@ -4,7 +4,7 @@ import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.CartItem;
 import com.github.nesterukia.mymarket.domain.Item;
 import com.github.nesterukia.mymarket.domain.User;
-import com.github.nesterukia.mymarket.utils.PostgresContainerTest;
+import com.github.nesterukia.mymarket.utils.CachedDbContainerTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +16,7 @@ import reactor.test.StepVerifier;
 import java.util.List;
 
 @SpringBootTest
-class CartItemRepositoryTest extends PostgresContainerTest {
+class CartItemRepositoryTest extends CachedDbContainerTest {
 
     @Autowired
     private CartItemRepository cartItemRepository;
@@ -47,21 +47,21 @@ class CartItemRepositoryTest extends PostgresContainerTest {
                 .title("Test Item 1")
                 .description("Description 1")
                 .imgPath("/img1.jpg")
-                .price(100L)
+                .price(100.0)
                 .build();
 
         Item item2 = Item.builder()
                 .title("Test Item 2")
                 .description("Description 2")
                 .imgPath("/img2.jpg")
-                .price(200L)
+                .price(200.0)
                 .build();
 
         Item item3 = Item.builder()
                 .title("Test Item 3")
                 .description("Description 3")
                 .imgPath("/img3.jpg")
-                .price(300L)
+                .price(300.0)
                 .build();
 
         testUser1 = userRepository.save(User.builder().build()).block();
