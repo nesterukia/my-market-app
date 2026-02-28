@@ -1,0 +1,75 @@
+openapi: 3.0.3
+info:
+  title: Payment Service API
+  description: API сервиса платежей
+  version: 1.0.0
+paths:
+  /api/balanceInfo/{userId}:
+    get:
+      summary: Получить информацию о балансе пользователя
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceInfo'
+  /api/payment:
+    post:
+      summary: Осуществить платеж
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '200':
+          description: Платеж успешно осуществлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionInfo'
+        '403':
+          description: Платеж отклонен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionInfo'
+components:
+  schemas:
+    BalanceInfo:
+      type: object
+      properties:
+        userId:
+          type: integer
+          example: 1
+        currentBalance:
+          type: number
+          format: double
+          example: 100.00
+    PaymentRequest:
+      type: object
+      properties:
+        userId:
+          type: integer
+          example: 1
+        amount:
+          type: number
+          format: double
+          example: 100.00
+    TransactionInfo:
+      type: object
+      properties:
+        transactionId:
+          type: integer
+          example: 101
+        message:
+          type: string
+          example: "Платеж успешно произведен"

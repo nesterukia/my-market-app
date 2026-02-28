@@ -1,17 +1,33 @@
 services:
   postgres-db:
     image: postgres:16-alpine
-    container_name: my-market-postgres
-    environment:
-      POSTGRES_DB: my-market-db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+    container_name: my-postgres-db
+    env_file: .env
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-db/init/:/docker-entrypoint-initdb.d
+      - my-market-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - my-market-network
+
+  redis-cache:
+    image: redis:7.4.2-bookworm
+    container_name: my-redis-cache
+    env_file: .env
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - my-market-data:/var/lib/redis/data
+    command: redis-server --save 20 1 --loglevel warning --requirepass $REDIS_PASSWORD
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "$REDIS_PASSWORD", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,23 +37,49 @@ services:
   my-market-app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ./market-app/Dockerfile
     container_name: my-market-app
     depends_on:
       postgres-db:
         condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    env_file: .env
     environment:
-      SPRING_DATASOURCE_URL: r2dbc:postgresql://postgres-db:5432/my-market-db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_URL: r2dbc:postgresql://postgres-db:5432/${MARKET_APP_POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${MARKET_APP_POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MARKET_APP_POSTGRES_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${MARKET_APP_SPRING_DATA_REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${MARKET_APP_SPRING_DATA_REDIS_PORT}
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      PAYMENT_SERVICE_BASE_URL: http://my-payment-service:8081
     ports:
       - "8080:8080"
     networks:
       - my-market-network
     restart: on-failure
 
+  my-payment-service:
+    build:
+      context: .
+      dockerfile: ./payment-service/Dockerfile
+    container_name: my-payment-service
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      SPRING_DATASOURCE_URL: r2dbc:postgresql://postgres-db:5432/${PAYMENT_SERVICE_POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${PAYMENT_SERVICE_POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${PAYMENT_SERVICE_POSTGRES_PASSWORD}
+    ports:
+      - "8081:8081"
+    networks:
+      - my-market-network
+    restart: on-failure
+
 volumes:
-  postgres_data:
+  my-market-data:
 
 networks:
   my-market-network:

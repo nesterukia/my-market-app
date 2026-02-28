@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: my-market-app
+  r2dbc:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT}
+      password: ${SPRING_DATA_REDIS_PASSWORD}
+    cache:
+      redis:
+        time-to-live: PT5M
+  thymeleaf:
+    cache: false
+paymentService:
+  baseUrl: ${PAYMENT_SERVICE_BASE_URL}
+server:
+  port: 8080
+logging:
+  level:
+    root: DEBUG
+    org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: DEBUG
+    org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor: DEBUG
+    org.springframework.web.bind: DEBUG
+    org.springframework.web.method.support.InvocableHandlerMethod: DEBUG

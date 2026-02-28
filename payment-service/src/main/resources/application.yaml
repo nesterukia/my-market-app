@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: payment-service
+  r2dbc:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+server:
+  port: 8081
+logging:
+  level:
+    root: DEBUG
+    org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: DEBUG
+    org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor: DEBUG
+    org.springframework.web.bind: DEBUG
+    org.springframework.web.method.support.InvocableHandlerMethod: DEBUG
