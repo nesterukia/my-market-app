@@ -17,5 +17,5 @@ public class Cart {
     private Long id;
 
     @Column("user_id")
-    private Long userId;
+    private String userId;
 }

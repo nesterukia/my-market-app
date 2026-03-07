@@ -23,7 +23,7 @@ public class Transaction implements Persistable<UUID> {
     private UUID id;
 
     @Column("user_id")
-    private Long userId;
+    private String userId;
 
     @Column("account_id")
     private Long accountId;

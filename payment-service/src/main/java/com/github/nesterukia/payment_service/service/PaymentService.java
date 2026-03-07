@@ -26,17 +26,20 @@ public class PaymentService {
         this.transactionRepository = transactionRepository;
     }
 
-    public Mono<Account> findAccountByUserId(Long userId) {
+    public Mono<Account> findAccountByUserId(String userId) {
         return accountRepository.findByUserId(userId)
                 .doOnNext(user -> log.info("Account FOUND: {}", user.getId()))
                 .switchIfEmpty(Mono.defer(() -> {
                     log.info("Account NOT FOUND, creating: {}", userId);
                     return accountRepository.save(Account.builder().userId(userId).build());
                 }))
-                .doOnSuccess(account -> log.info("Returning Account: {}", account.getId()));
+                .doOnSuccess(account -> {
+                    log.info("Returning Account: {}", account.getId());
+                    log.info("Account balance from: {}", account.getCurrentBalance());
+                });
     }
 
-    public Mono<Transaction> commitPayment(Long userId, Double amount) {
+    public Mono<Transaction> commitPayment(String userId, Double amount) {
         return accountRepository.findByUserId(userId)
                 .flatMap(account -> {
                     double finalBalance = account.getCurrentBalance() - amount;

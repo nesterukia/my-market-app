@@ -2,10 +2,8 @@ package com.github.nesterukia.mymarket.http;
 
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.Item;
-import com.github.nesterukia.mymarket.domain.User;
 import com.github.nesterukia.mymarket.service.CartService;
 import com.github.nesterukia.mymarket.service.ItemService;
-import com.github.nesterukia.mymarket.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,12 +15,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
-import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @WebFluxTest(ItemController.class)
@@ -35,15 +33,12 @@ class ItemControllerTest {
     private WebTestClient webTestClient;
 
     @MockitoBean
-    private UserService userService;
-
-    @MockitoBean
     private ItemService itemService;
 
     @MockitoBean
     private CartService cartService;
 
-    private User testUser;
+    private String testUserId;
     private Cart testCart;
     private Item testItem1;
     private Item testItem2;
@@ -54,8 +49,8 @@ class ItemControllerTest {
 
     @BeforeEach
     void setUp() {
-        testUser = User.builder().id(1L).build();
-        testCart = Cart.builder().userId(testUser.getId()).build();
+        testUserId = "test-user-id";
+        testCart = Cart.builder().userId(testUserId).build();
 
         testItem1 = Item.builder()
                 .id(1L)
@@ -111,22 +106,19 @@ class ItemControllerTest {
 
         when(itemService.formItemsPage(eq(itemsList), eq(""), any(Pageable.class)))
                 .thenReturn(Mono.just(itemPage));
-
-        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(eq(testUser.getId())))
+        
+        when(cartService.findByUserId(eq(testUserId)))
                 .thenReturn(Mono.just(testCart));
 
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(1L)))
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(1L)))
                 .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(2L)))
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(2L)))
                 .thenReturn(Mono.just(2));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(3L)))
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(3L)))
                 .thenReturn(Mono.just(1));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(4L)))
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(4L)))
                 .thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(5L)))
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(5L)))
                 .thenReturn(Mono.just(3));
 
         webTestClient.get()
@@ -155,10 +147,9 @@ class ItemControllerTest {
                 .thenReturn(Mono.just(itemsList));
         when(itemService.formItemsPage(eq(itemsList), eq("test"), any(Pageable.class)))
                 .thenReturn(Mono.just(itemPage));
-        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
-        when(cartService.findByUserId(eq(testUser.getId()))).thenReturn(Mono.just(testCart));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(1L))).thenReturn(Mono.just(1));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(2L))).thenReturn(Mono.just(0));
+        when(cartService.findByUserId(eq(testUserId))).thenReturn(Mono.just(testCart));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(1L))).thenReturn(Mono.just(1));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(2L))).thenReturn(Mono.just(0));
 
         webTestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/items").queryParam("search", "test").build())
@@ -182,13 +173,12 @@ class ItemControllerTest {
 
         when(itemService.getItems(eq(""), any(Pageable.class))).thenReturn(Mono.just(itemsList));
         when(itemService.formItemsPage(eq(itemsList), eq(""), any(Pageable.class))).thenReturn(Mono.just(itemPage));
-        when(userService.getOrCreate(eq(1L), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
-        when(cartService.findByUserId(eq(testUser.getId()))).thenReturn(Mono.just(testCart));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(1L))).thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(2L))).thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(3L))).thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(4L))).thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(5L))).thenReturn(Mono.just(0));
+        when(cartService.findByUserId(eq(testUserId))).thenReturn(Mono.just(testCart));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(1L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(2L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(3L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(4L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(5L))).thenReturn(Mono.just(0));
 
         webTestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/items").queryParam("sort", "ALPHA").build())
@@ -210,13 +200,12 @@ class ItemControllerTest {
 
         when(itemService.getItems(eq(""), any(Pageable.class))).thenReturn(Mono.just(itemsList));
         when(itemService.formItemsPage(eq(itemsList), eq(""), any(Pageable.class))).thenReturn(Mono.just(itemPage));
-        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
-        when(cartService.findByUserId(eq(testUser.getId()))).thenReturn(Mono.just(testCart));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(1L))).thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(2L))).thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(3L))).thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(4L))).thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(5L))).thenReturn(Mono.just(0));
+        when(cartService.findByUserId(eq(testUserId))).thenReturn(Mono.just(testCart));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(1L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(2L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(3L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(4L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(5L))).thenReturn(Mono.just(0));
 
         webTestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/items").queryParam("sort", "PRICE").build())
@@ -237,11 +226,10 @@ class ItemControllerTest {
 
         when(itemService.getItems(eq(""), any(Pageable.class))).thenReturn(Mono.just(itemsList));
         when(itemService.formItemsPage(eq(itemsList), eq(""), any(Pageable.class))).thenReturn(Mono.just(itemPage));
-        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
-        when(cartService.findByUserId(eq(testUser.getId()))).thenReturn(Mono.just(testCart));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(3L))).thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(4L))).thenReturn(Mono.just(2));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(5L))).thenReturn(Mono.just(1));
+        when(cartService.findByUserId(eq(testUserId))).thenReturn(Mono.just(testCart));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(3L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(4L))).thenReturn(Mono.just(2));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(5L))).thenReturn(Mono.just(1));
 
         webTestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/items").queryParam("pageNumber", 2).queryParam("pageSize", 3).build())
@@ -266,13 +254,12 @@ class ItemControllerTest {
 
         when(itemService.getItems(eq(""), any(Pageable.class))).thenReturn(Mono.just(itemsList));
         when(itemService.formItemsPage(eq(itemsList), eq(""), any(Pageable.class))).thenReturn(Mono.just(itemPage));
-        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
-        when(cartService.findByUserId(eq(testUser.getId()))).thenReturn(Mono.just(testCart));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(1L))).thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(2L))).thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(3L))).thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(4L))).thenReturn(Mono.just(0));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(5L))).thenReturn(Mono.just(0));
+        when(cartService.findByUserId(eq(testUserId))).thenReturn(Mono.just(testCart));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(1L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(2L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(3L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(4L))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(5L))).thenReturn(Mono.just(0));
 
         webTestClient.get()
                 .uri("/")
@@ -287,9 +274,8 @@ class ItemControllerTest {
     @Test
     void getItemById_ShouldReturnItemView() {
         Long itemId = 1L;
-        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
         when(itemService.getItemById(itemId)).thenReturn(Mono.just(testItem1));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(itemId))).thenReturn(Mono.just(2));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(itemId))).thenReturn(Mono.just(2));
 
         webTestClient.get()
                 .uri("/items/{id}", itemId)
@@ -309,9 +295,8 @@ class ItemControllerTest {
     @Test
     void getItemById_ShouldHandleZeroQuantity() {
         Long itemId = 1L;
-        when(userService.getOrCreate(isNull(), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
         when(itemService.getItemById(itemId)).thenReturn(Mono.just(testItem1));
-        when(cartService.countCartItemsByUserIdAndItemId(eq(testUser.getId()), eq(itemId))).thenReturn(Mono.just(0));
+        when(cartService.countCartItemsByUserIdAndItemId(eq(testUserId), eq(itemId))).thenReturn(Mono.just(0));
 
         webTestClient.get()
                 .uri("/items/{id}", itemId)

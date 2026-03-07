@@ -6,6 +6,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface OrderRepository extends ReactiveCrudRepository<Order, Long> {
-    Flux<Order> findAllByUserId(Long userId);
-    Mono<Order> findByIdAndUserId(Long id, Long userId);
+    Flux<Order> findAllByUserId(String userId);
+    Mono<Order> findByIdAndUserId(Long id, String userId);
 }

@@ -1,6 +1,6 @@
 package com.github.nesterukia.payment_service.http.dto;
 
 public record PaymentRequest(
-        Long userId,
+        String userId,
         Double amount
 ){}

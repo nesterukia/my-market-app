@@ -3,27 +3,34 @@ package com.github.nesterukia.mymarket.http;
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.Item;
 import com.github.nesterukia.mymarket.domain.Order;
-import com.github.nesterukia.mymarket.domain.User;
 import com.github.nesterukia.mymarket.http.dto.ItemDto;
 import com.github.nesterukia.mymarket.http.dto.OrderDto;
 import com.github.nesterukia.mymarket.http.dto.payment.TransactionInfo;
-import com.github.nesterukia.mymarket.service.*;
+import com.github.nesterukia.mymarket.service.CartService;
+import com.github.nesterukia.mymarket.service.ItemService;
+import com.github.nesterukia.mymarket.service.OrderService;
+import com.github.nesterukia.mymarket.service.PaymentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webflux.test.autoconfigure.WebFluxTest;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
-import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
+@TestPropertySource(properties = {
+        "KC_OUTER_REALM_URL=http://localhost:${KC_OUTER_PORT}/realms/nesterukia-realm",
+        "KC_INNER_REALM_URI=http://keycloak-sso:8080/realms/nesterukia-realm"
+})
 @WebFluxTest(OrderController.class)
 class OrderControllerTest {
 
@@ -40,15 +47,12 @@ class OrderControllerTest {
     private CartService cartService;
 
     @MockitoBean
-    private UserService userService;
-
-    @MockitoBean
     private ItemService itemService;
 
     @MockitoBean
     private PaymentService paymentService;
 
-    private User testUser;
+    private String testUserId;
     private Cart testCart;
     private Order testOrder1;
     private Order testOrder2;
@@ -61,23 +65,21 @@ class OrderControllerTest {
 
     @BeforeEach
     void setUp() {
-        testUser = User.builder()
-                .id(1L)
-                .build();
+        testUserId = "test-user-id";
 
         testCart = Cart.builder()
                 .id(1L)
-                .userId(testUser.getId())
+                .userId(testUserId)
                 .build();
 
         testOrder1 = Order.builder()
                 .id(1L)
-                .userId(testUser.getId())
+                .userId(testUserId)
                 .build();
 
         testOrder2 = Order.builder()
                 .id(2L)
-                .userId(testUser.getId())
+                .userId(testUserId)
                 .build();
 
         testItem1 = Item.builder()
@@ -105,10 +107,7 @@ class OrderControllerTest {
 
     @Test
     void getAllOrders_ShouldReturnOrdersViewWithOrders() {
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
-
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
-        when(orderService.getAllOrders(testUser.getId()))
+        when(orderService.getAllOrders(testUserId))
                 .thenReturn(Flux.just(testOrder1, testOrder2));
 
         when(itemService.findAllByOrderId(testOrder1.getId()))
@@ -119,7 +118,7 @@ class OrderControllerTest {
 
         webTestClient.get()
                 .uri("/orders")
-                .cookie("user_id", testUser.getId().toString())
+                .cookie("user_id", testUserId.toString())
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -130,13 +129,12 @@ class OrderControllerTest {
 
     @Test
     void getAllOrders_ShouldReturnEmptyOrdersViewWhenNoOrders() {
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
-        when(orderService.getAllOrders(eq(testUser.getId())))
+        when(orderService.getAllOrders(eq(testUserId)))
                 .thenReturn(Flux.empty());
 
         webTestClient.get()
                 .uri("/orders")
-                .cookie("user_id", testUser.getId().toString())
+                .cookie("user_id", testUserId.toString())
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -164,9 +162,8 @@ class OrderControllerTest {
 
     @Test
     void getOrder_ShouldReturnOrderViewWithExistingOrder() {
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
 
-        when(orderService.getOrderByUserIdAndId(testUser.getId(), testOrder1.getId()))
+        when(orderService.getOrderByUserIdAndId(testUserId, testOrder1.getId()))
                 .thenReturn(Mono.just(testOrder1));
 
         when(itemService.findAllByOrderId(testOrder1.getId()))
@@ -177,7 +174,7 @@ class OrderControllerTest {
                         .path("/orders/%d".formatted(testOrder1.getId()))
                         .queryParam("newOrder", "false")
                         .build())
-                .cookie("user_id", testUser.getId().toString())
+                .cookie("user_id", testUserId.toString())
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -193,9 +190,8 @@ class OrderControllerTest {
 
     @Test
     void getOrder_ShouldReturnOrderViewWithNewOrderFlag() {
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
 
-        when(orderService.getOrderByUserIdAndId(testUser.getId(), testOrder1.getId()))
+        when(orderService.getOrderByUserIdAndId(testUserId, testOrder1.getId()))
                 .thenReturn(Mono.just(testOrder1));
 
         when(itemService.findAllByOrderId(testOrder1.getId()))
@@ -206,7 +202,7 @@ class OrderControllerTest {
                         .path("/orders/%d".formatted(testOrder1.getId()))
                         .queryParam("newOrder", "true")
                         .build())
-                .cookie("user_id", testUser.getId().toString())
+                .cookie("user_id", testUserId.toString())
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -217,23 +213,18 @@ class OrderControllerTest {
 
     @Test
     void buy_ShouldCreateOrderAndRedirect() {
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class))).thenReturn(Mono.just(testUser));
-
         Order newOrder = Order.builder()
                 .id(3L)
-                .userId(testUser.getId())
+                .userId(testUserId)
                 .build();
 
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(testUser.getId()))
+        when(cartService.findByUserId(testUserId))
                 .thenReturn(Mono.just(testCart));
 
         when(cartService.calculateTotalSum(eq(testCart)))
                 .thenReturn(Mono.just(100.0));
 
-        when(paymentService.commitPayment(eq(testUser.getId()), eq(100.0))).thenReturn(
+        when(paymentService.commitPayment(eq(testUserId), eq(100.0))).thenReturn(
                 Mono.just(new TransactionInfo(UUID.randomUUID().toString(), "Success"))
         );
 
@@ -245,7 +236,7 @@ class OrderControllerTest {
 
         webTestClient.post()
                 .uri("/buy")
-                .cookie("user_id", testUser.getId().toString())
+                .cookie("user_id", testUserId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueMatches("Location", ".*/orders/3\\?newOrder=true.*");

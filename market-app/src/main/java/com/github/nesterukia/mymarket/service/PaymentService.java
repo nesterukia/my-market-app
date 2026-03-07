@@ -23,7 +23,7 @@ public class PaymentService {
     private final WebClient webClient;
     @Value("${paymentService.baseUrl}")
     private String paymentServiceUrl;
-    private static final String USER_BALANCE_URI_PATH = "/api/balanceInfo/%d";
+    private static final String USER_BALANCE_URI_PATH = "/api/balanceInfo/%s";
     private static final String COMMIT_PAYMENT_URI_PATH = "/api/payment";
 
     @Autowired
@@ -31,7 +31,7 @@ public class PaymentService {
         this.webClient = webClient;
     }
 
-    public Mono<PaymentInfo> checkUserBalance(Long userId, Double orderSum) {
+    public Mono<PaymentInfo> checkUserBalance(String userId, Double orderSum) {
         String uriPath = USER_BALANCE_URI_PATH.formatted(userId);
         return webClient.get()
                 .uri(URI.create(paymentServiceUrl.concat(uriPath)))
@@ -46,7 +46,7 @@ public class PaymentService {
                 .onErrorResume(e -> Mono.just(PaymentInfo.serviceUnavailable()));
     }
 
-    public Mono<TransactionInfo> commitPayment(Long userId, Double orderSum) {
+    public Mono<TransactionInfo> commitPayment(String userId, Double orderSum) {
         return webClient.post()
                 .uri(URI.create(paymentServiceUrl.concat(COMMIT_PAYMENT_URI_PATH)))
                 .body(Mono.just(new PaymentRequest(userId, orderSum)), PaymentRequest.class)
