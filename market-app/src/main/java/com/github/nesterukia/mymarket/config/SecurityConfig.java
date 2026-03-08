@@ -5,21 +5,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.client.oidc.web.server.logout.OidcClientInitiatedServerLogoutSuccessHandler;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.server.DefaultServerOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationRequestResolver;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
 import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler;
-import org.springframework.security.web.server.authentication.logout.ServerLogoutSuccessHandler;
-import org.springframework.web.server.WebSession;
-import reactor.core.publisher.Mono;
+import org.springframework.security.web.server.authentication.logout.*;
+import org.springframework.security.web.server.header.ClearSiteDataServerHttpHeadersWriter;
 
 import java.net.URI;
 import java.util.Map;
@@ -53,6 +50,15 @@ public class SecurityConfig {
         http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
+                        .pathMatchers(
+                                "/login",
+                                "/logout",
+                                "/",
+                                "/items",
+                                "/items/**",
+                                "/static/**",
+                                "/images/**"
+                        ).permitAll()
                         .anyExchange().authenticated()
                 )
                 .oauth2Login(oAuth2LoginSpec -> oAuth2LoginSpec
@@ -60,9 +66,9 @@ public class SecurityConfig {
                         .authenticationSuccessHandler(successHandler())
                 )
                 .oauth2Client(withDefaults())
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .logoutSuccessHandler(completeLogoutHandler())
+                .logout((logout) -> logout
+                        .logoutHandler(logoutHandler())
+                        .logoutSuccessHandler(oidcLogoutSuccessHandler())
                 );
 
         return http.build();
@@ -91,17 +97,24 @@ public class SecurityConfig {
         return handler;
     }
 
-    public ServerLogoutSuccessHandler completeLogoutHandler() {
-        return (exchange, authentication) -> {
-            ServerHttpResponse response = exchange.getExchange().getResponse();
-            return exchange.getExchange().getSession().flatMap(WebSession::invalidate)
-                    .then(Mono.fromRunnable(() -> {
-                        String keycloakLogoutUrl = "%s/protocol/openid-connect/logout?post_logout_redirect_uri=http://localhost:%d/"
-                                .formatted(innerRealmUri, serverPort);
+    @Bean
+    public ServerLogoutSuccessHandler oidcLogoutSuccessHandler() {
+        OidcClientInitiatedServerLogoutSuccessHandler oidcLogoutSuccessHandler =
+                new OidcClientInitiatedServerLogoutSuccessHandler(this.clientRegistrationRepository);
 
-                        response.setStatusCode(HttpStatus.SEE_OTHER);
-                        response.getHeaders().set(HttpHeaders.LOCATION, keycloakLogoutUrl);
-                    }));
-        };
+        oidcLogoutSuccessHandler.setPostLogoutRedirectUri("{baseUrl}");
+
+        return oidcLogoutSuccessHandler;
+    }
+
+    @Bean
+    public ServerLogoutHandler logoutHandler() {
+        return new DelegatingServerLogoutHandler(
+                new SecurityContextServerLogoutHandler(),
+                new WebSessionServerLogoutHandler(),
+                new HeaderWriterServerLogoutHandler(
+                        new ClearSiteDataServerHttpHeadersWriter(ClearSiteDataServerHttpHeadersWriter.Directive.COOKIES)
+                )
+        );
     }
 }

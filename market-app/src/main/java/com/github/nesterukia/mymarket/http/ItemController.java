@@ -7,6 +7,7 @@ import com.github.nesterukia.mymarket.http.dto.ItemsDto;
 import com.github.nesterukia.mymarket.http.dto.Paging;
 import com.github.nesterukia.mymarket.service.CartService;
 import com.github.nesterukia.mymarket.service.ItemService;
+import com.github.nesterukia.mymarket.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -21,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.reactive.result.view.Rendering;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.Objects;
 
 @Controller
 @Slf4j
@@ -43,7 +46,7 @@ public class ItemController {
             @RequestParam(defaultValue = "5") int pageSize,
             @AuthenticationPrincipal OAuth2User oAuth2User) {
 
-        String userId = oAuth2User.getAttribute("sub");
+        String userId = oAuth2User != null ? oAuth2User.getAttribute("sub") : UserUtils.ANONYMOUS_USER_ID;
 
         SortType sortType = SortType.valueOf(sort.toUpperCase());
         Sort sortBy = switch (sortType) {
@@ -80,6 +83,7 @@ public class ItemController {
                         .modelAttribute("search", itemsDto.getSearch())
                         .modelAttribute("sort", itemsDto.getSort().toString())
                         .modelAttribute("paging", itemsDto.getPaging())
+                        .modelAttribute("isAuthenticated", !Objects.equals(userId, UserUtils.ANONYMOUS_USER_ID))
                         .build()
                 );
     }
@@ -88,7 +92,7 @@ public class ItemController {
     public Mono<Rendering> getItemById(@PathVariable Long id,
                                        @AuthenticationPrincipal OAuth2User oAuth2User) {
 
-        String userId = oAuth2User.getAttribute("sub");
+        String userId = oAuth2User != null ? oAuth2User.getAttribute("sub") : UserUtils.ANONYMOUS_USER_ID;
 
         return Mono.zip(
                 itemService.getItemById(id),
@@ -99,6 +103,7 @@ public class ItemController {
             ItemDto itemDto = ItemDto.fromItem(item, quantity);
             return Rendering.view("item")
                     .modelAttribute("item", itemDto)
+                    .modelAttribute("isAuthenticated", !Objects.equals(userId, UserUtils.ANONYMOUS_USER_ID))
                     .build();
         });
     }
