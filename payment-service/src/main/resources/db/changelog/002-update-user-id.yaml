@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: update-user-entity-002
+      author: nesterukia
+      preConditions:
+        - onFail: MARK_RAN
+          tableExists:
+            tableName: users
+      changes:
+        - dropUniqueConstraint:
+            tableName: accounts
+            constraintName: fk_accounts_user_id_users_id
+        - modifyDataType:
+            tableName: accounts
+            columnName: user_id
+            newDataType: varchar(255)
+        - dropUniqueConstraint:
+            tableName: transactions
+            constraintName: fk_transactions_user_id_users_id
+        - modifyDataType:
+            tableName: transactions
+            columnName: user_id
+            newDataType: varchar(255)
+        - dropTable:
+            tableName: users

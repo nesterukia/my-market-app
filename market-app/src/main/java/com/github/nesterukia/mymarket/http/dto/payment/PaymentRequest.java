@@ -1,6 +1,6 @@
 package com.github.nesterukia.mymarket.http.dto.payment;
 
 public record PaymentRequest(
-        Long userId,
+        String userId,
         Double amount
 ){}

@@ -20,5 +20,5 @@ public class Order {
     private Long id;
 
     @Column("user_id")
-    private Long userId;
+    private String userId;
 }

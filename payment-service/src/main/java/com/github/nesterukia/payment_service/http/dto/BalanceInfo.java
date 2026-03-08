@@ -1,6 +1,6 @@
 package com.github.nesterukia.payment_service.http.dto;
 
 public record BalanceInfo(
-        Long userId,
+        String userId,
         Double currentBalance
 ) {}
