@@ -7,7 +7,6 @@ import com.github.nesterukia.mymarket.domain.ActionType;
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.CartItem;
 import com.github.nesterukia.mymarket.domain.Item;
-import com.github.nesterukia.mymarket.domain.User;
 import com.github.nesterukia.mymarket.domain.exceptions.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,13 +30,13 @@ public class CartService {
         this.itemRepository = itemRepository;
     }
 
-    public Mono<Cart> findByUserId(Long userId) {
+    public Mono<Cart> findByUserId(String userId) {
         return cartRepository.findByUserId(userId);
     }
 
-    public Mono<Cart> create(User user) {
-        Cart newCart = Cart.builder().userId(user.getId()).build();
-        log.debug("New cart for user[{}]: {}", user.getId(), newCart);
+    public Mono<Cart> create(String userId) {
+        Cart newCart = Cart.builder().userId(userId).build();
+        log.debug("New cart for user[{}]: {}", userId, newCart);
         return cartRepository.save(newCart);
     }
 
@@ -72,7 +71,7 @@ public class CartService {
                 .switchIfEmpty(Mono.just(0));
     }
 
-    public Mono<Integer> countCartItemsByUserIdAndItemId(Long userId, Long itemId) {
+    public Mono<Integer> countCartItemsByUserIdAndItemId(String userId, Long itemId) {
         return cartRepository.findByUserId(userId)
                 .flatMap(cart -> cartItemRepository.findByCartIdAndItemId(cart.getId(), itemId))
                 .map(CartItem::getQuantity)

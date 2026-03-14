@@ -4,25 +4,21 @@ import com.github.nesterukia.mymarket.domain.ActionType;
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.CartItem;
 import com.github.nesterukia.mymarket.domain.Item;
-import com.github.nesterukia.mymarket.domain.User;
 import com.github.nesterukia.mymarket.http.dto.payment.PaymentInfo;
 import com.github.nesterukia.mymarket.service.CartService;
 import com.github.nesterukia.mymarket.service.ItemService;
 import com.github.nesterukia.mymarket.service.PaymentService;
-import com.github.nesterukia.mymarket.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webflux.test.autoconfigure.WebFluxTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
-import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import static com.github.nesterukia.mymarket.utils.UserUtils.USER_ID_COOKIE;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @WebFluxTest(CartController.class)
@@ -38,12 +34,9 @@ class CartControllerTest {
     private ItemService itemService;
 
     @MockitoBean
-    private UserService userService;
-
-    @MockitoBean
     private PaymentService paymentService;
 
-    private User testUser;
+    private String testUserId;
     private Cart testCart;
     private Item testItem1;
     private Item testItem2;
@@ -58,13 +51,11 @@ class CartControllerTest {
 
     @BeforeEach
     void setUp() {
-        testUser = User.builder()
-                .id(1L)
-                .build();
+        testUserId = "test-user-id";
 
         testCart = Cart.builder()
                 .id(1L)
-                .userId(testUser.getId())
+                .userId(testUserId)
                 .build();
 
         testItem1 = Item.builder()
@@ -100,13 +91,10 @@ class CartControllerTest {
 
     @Test
     void getCartItems_ShouldReturnCartViewWithItems() {
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(testUser.getId()))
+        when(cartService.findByUserId(testUserId))
                 .thenReturn(Mono.just(testCart));
 
-        when(cartService.create(testUser))
+        when(cartService.create(testUserId))
                 .thenReturn(Mono.just(testCart));
 
         when(cartService.findAllCartItemsByCart(testCart))
@@ -118,13 +106,13 @@ class CartControllerTest {
         when(itemService.getItemById(testItem2.getId()))
                 .thenReturn(Mono.just(testItem2));
 
-        when(paymentService.checkUserBalance(anyLong(), anyDouble())).thenReturn(
+        when(paymentService.checkUserBalance(eq(testUserId), anyDouble())).thenReturn(
                 Mono.just(new PaymentInfo(true, true))
         );
 
         webTestClient.get()
                 .uri("/cart/items")
-                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -140,25 +128,22 @@ class CartControllerTest {
 
     @Test
     void getCartItems_ShouldCreateNewCartWhenNotFound() {
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(testUser.getId()))
+        when(cartService.findByUserId(testUserId))
                 .thenReturn(Mono.empty());
 
-        when(cartService.create(testUser))
+        when(cartService.create(testUserId))
                 .thenReturn(Mono.just(testCart));
 
         when(cartService.findAllCartItemsByCart(testCart))
                 .thenReturn(Flux.empty());
 
-        when(paymentService.checkUserBalance(anyLong(), anyDouble())).thenReturn(
+        when(paymentService.checkUserBalance(eq(testUserId), anyDouble())).thenReturn(
                 Mono.just(new PaymentInfo(true, true))
         );
 
         webTestClient.get()
                 .uri("/cart/items")
-                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -173,16 +158,13 @@ class CartControllerTest {
         when(itemService.getItemById(testItem1.getId()))
                 .thenReturn(Mono.just(testItem1));
 
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(testUser.getId()))
+        when(cartService.findByUserId(testUserId))
                 .thenReturn(Mono.just(testCart));
 
-        when(cartService.create(testUser))
+        when(cartService.create(testUserId))
                 .thenReturn(Mono.just(testCart));
 
-        when(cartService.create(testUser))
+        when(cartService.create(testUserId))
                 .thenReturn(Mono.just(testCart));
 
         when(cartService.updateItemQuantityInCart(eq(ActionType.PLUS), eq(testCart), eq(testItem1), eq(true)))
@@ -197,7 +179,7 @@ class CartControllerTest {
         when(itemService.getItemById(testItem2.getId()))
                 .thenReturn(Mono.just(testItem2));
 
-        when(paymentService.checkUserBalance(eq(testUser.getId()), anyDouble())).thenReturn(
+        when(paymentService.checkUserBalance(eq(testUserId), anyDouble())).thenReturn(
                 Mono.just(new PaymentInfo(true, true))
         );
 
@@ -211,7 +193,7 @@ class CartControllerTest {
                         .queryParam("pageNumber", 0)
                         .queryParam("pageSize", 10)
                         .build())
-                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -227,13 +209,10 @@ class CartControllerTest {
         when(itemService.getItemById(testItem1.getId()))
                 .thenReturn(Mono.just(testItem1));
 
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(testUser.getId()))
+        when(cartService.findByUserId(testUserId))
                 .thenReturn(Mono.just(testCart));
 
-        when(cartService.create(testUser))
+        when(cartService.create(testUserId))
                 .thenReturn(Mono.just(testCart));
 
         when(cartService.updateItemQuantityInCart(eq(ActionType.MINUS), eq(testCart), eq(testItem1), eq(true)))
@@ -248,11 +227,11 @@ class CartControllerTest {
         when(itemService.getItemById(testItem2.getId()))
                 .thenReturn(Mono.just(testItem2));
 
-        when(paymentService.checkUserBalance(anyLong(), anyDouble())).thenReturn(
+        when(paymentService.checkUserBalance(eq(testUserId), anyDouble())).thenReturn(
                 Mono.just(new PaymentInfo(true, true))
         );
 
-        when(paymentService.checkUserBalance(anyLong(), anyDouble())).thenReturn(
+        when(paymentService.checkUserBalance(eq(testUserId), anyDouble())).thenReturn(
                 Mono.just(new PaymentInfo(true, true))
         );
 
@@ -266,7 +245,7 @@ class CartControllerTest {
                         .queryParam("pageNumber", 0)
                         .queryParam("pageSize", 10)
                         .build())
-                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -282,13 +261,10 @@ class CartControllerTest {
         when(itemService.getItemById(testItem1.getId()))
                 .thenReturn(Mono.just(testItem1));
 
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(testUser.getId()))
+        when(cartService.findByUserId(testUserId))
                 .thenReturn(Mono.just(testCart));
 
-        when(cartService.create(testUser))
+        when(cartService.create(testUserId))
                 .thenReturn(Mono.just(testCart));
 
         when(cartService.updateItemQuantityInCart(eq(ActionType.DELETE), eq(testCart), eq(testItem1), eq(true)))
@@ -300,7 +276,7 @@ class CartControllerTest {
         when(itemService.getItemById(testItem2.getId()))
                 .thenReturn(Mono.just(testItem2));
 
-        when(paymentService.checkUserBalance(anyLong(), anyDouble())).thenReturn(
+        when(paymentService.checkUserBalance(eq(testUserId), anyDouble())).thenReturn(
                 Mono.just(new PaymentInfo(true, true))
         );
 
@@ -314,7 +290,7 @@ class CartControllerTest {
                         .queryParam("pageNumber", 0)
                         .queryParam("pageSize", 10)
                         .build())
-                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -329,14 +305,11 @@ class CartControllerTest {
     void changeItemQuantityInCartFromCartPage_ShouldCreateCartWhenNotFound() {
         when(itemService.getItemById(testItem1.getId()))
                 .thenReturn(Mono.just(testItem1));
-
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(testUser.getId()))
+        
+        when(cartService.findByUserId(testUserId))
                 .thenReturn(Mono.empty());
 
-        when(cartService.create(testUser))
+        when(cartService.create(testUserId))
                 .thenReturn(Mono.just(testCart));
 
         when(cartService.updateItemQuantityInCart(eq(ActionType.PLUS), eq(testCart), eq(testItem1), eq(true)))
@@ -348,7 +321,7 @@ class CartControllerTest {
         when(itemService.getItemById(testItem1.getId()))
                 .thenReturn(Mono.just(testItem1));
 
-        when(paymentService.checkUserBalance(anyLong(), anyDouble())).thenReturn(
+        when(paymentService.checkUserBalance(eq(testUserId), anyDouble())).thenReturn(
                 Mono.just(new PaymentInfo(true, true))
         );
 
@@ -362,7 +335,7 @@ class CartControllerTest {
                         .queryParam("pageNumber", 0)
                         .queryParam("pageSize", 10)
                         .build())
-                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -377,13 +350,10 @@ class CartControllerTest {
         when(itemService.getItemById(testItem1.getId()))
                 .thenReturn(Mono.just(testItem1));
 
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(testUser.getId()))
+        when(cartService.findByUserId(testUserId))
                 .thenReturn(Mono.just(testCart));
 
-        when(cartService.create(testUser))
+        when(cartService.create(testUserId))
                 .thenReturn(Mono.just(testCart));
 
         when(cartService.updateItemQuantityInCart(eq(ActionType.PLUS), eq(testCart), eq(testItem1), eq(false)))
@@ -402,7 +372,7 @@ class CartControllerTest {
                         .queryParam("pageNumber", 0)
                         .queryParam("pageSize", 10)
                         .build())
-                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/items?search=test&sort=ALPHA&pageNumber=1&pageSize=10");
@@ -413,13 +383,10 @@ class CartControllerTest {
         when(itemService.getItemById(testItem1.getId()))
                 .thenReturn(Mono.just(testItem1));
 
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(testUser.getId()))
+        when(cartService.findByUserId(testUserId))
                 .thenReturn(Mono.just(testCart));
 
-        when(cartService.create(testUser))
+        when(cartService.create(testUserId))
                 .thenReturn(Mono.just(testCart));
 
         when(cartService.updateItemQuantityInCart(eq(ActionType.MINUS), eq(testCart), eq(testItem1), eq(false)))
@@ -438,7 +405,7 @@ class CartControllerTest {
                         .queryParam("pageNumber", 1)
                         .queryParam("pageSize", 5)
                         .build())
-                .cookie(USER_ID_COOKIE, testUser.getId().toString())
+                
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueMatches("Location", ".*/items\\?search=test&sort=PRICE&pageNumber=1&pageSize=5.*");
@@ -449,13 +416,10 @@ class CartControllerTest {
         when(itemService.getItemById(testItem1.getId()))
                 .thenReturn(Mono.just(testItem1));
 
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(testUser.getId()))
+        when(cartService.findByUserId(testUserId))
                 .thenReturn(Mono.empty());
 
-        when(cartService.create(testUser))
+        when(cartService.create(testUserId))
                 .thenReturn(Mono.just(testCart));
 
         when(cartService.updateItemQuantityInCart(eq(ActionType.DELETE), eq(testCart), eq(testItem1), eq(false)))
@@ -474,7 +438,6 @@ class CartControllerTest {
                         .queryParam("pageNumber", 0)
                         .queryParam("pageSize", 10)
                         .build())
-                .cookie(USER_ID_COOKIE, testUser.getId().toString())
                 .exchange()
                 .expectStatus().is3xxRedirection();
     }
@@ -484,13 +447,10 @@ class CartControllerTest {
         when(itemService.getItemById(testItem1.getId()))
                 .thenReturn(Mono.just(testItem1));
 
-        when(userService.getOrCreate(eq(testUser.getId()), any(ServerWebExchange.class)))
-                .thenReturn(Mono.just(testUser));
-
-        when(cartService.findByUserId(testUser.getId()))
+        when(cartService.findByUserId(testUserId))
                 .thenReturn(Mono.just(testCart));
 
-        when(cartService.create(testUser))
+        when(cartService.create(testUserId))
                 .thenReturn(Mono.just(testCart));
 
         when(cartService.updateItemQuantityInCart(eq(ActionType.PLUS), eq(testCart), eq(testItem1), eq(false)))
@@ -508,7 +468,6 @@ class CartControllerTest {
                         .queryParam("pageNumber", 0)
                         .queryParam("pageSize", 10)
                         .build())
-                .cookie(USER_ID_COOKIE, testUser.getId().toString())
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)

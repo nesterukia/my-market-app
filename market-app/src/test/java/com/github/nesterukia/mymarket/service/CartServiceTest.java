@@ -6,7 +6,6 @@ import com.github.nesterukia.mymarket.domain.ActionType;
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.CartItem;
 import com.github.nesterukia.mymarket.domain.Item;
-import com.github.nesterukia.mymarket.domain.User;
 import com.github.nesterukia.mymarket.domain.exceptions.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,7 +19,11 @@ import reactor.test.StepVerifier;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.isNull;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CartServiceTest {
@@ -34,20 +37,18 @@ class CartServiceTest {
     @InjectMocks
     private CartService cartService;
 
-    private User testUser;
+    private String testUserId;
     private Cart testCart;
     private Item testItem;
     private CartItem testCartItem;
 
     @BeforeEach
     void setUp() {
-        testUser = User.builder()
-                .id(1L)
-                .build();
+        testUserId = "test-user-id";
 
         testCart = Cart.builder()
                 .id(1L)
-                .userId(testUser.getId())
+                .userId(testUserId)
                 .build();
 
         testItem = Item.builder()
@@ -68,20 +69,20 @@ class CartServiceTest {
 
     @Test
     void findByUserId_ShouldReturnCartWhenExists() {
-        when(cartRepository.findByUserId(testUser.getId()))
+        when(cartRepository.findByUserId(testUserId))
                 .thenReturn(Mono.just(testCart));
 
-        StepVerifier.create(cartService.findByUserId(testUser.getId()))
+        StepVerifier.create(cartService.findByUserId(testUserId))
                 .expectNext(testCart)
                 .verifyComplete();
     }
 
     @Test
     void findByUserId_ShouldReturnEmptyWhenCartNotFound() {
-        when(cartRepository.findByUserId(testUser.getId()))
+        when(cartRepository.findByUserId(testUserId))
                 .thenReturn(Mono.empty());
 
-        StepVerifier.create(cartService.findByUserId(testUser.getId()))
+        StepVerifier.create(cartService.findByUserId(testUserId))
                 .verifyComplete();
     }
 
@@ -90,7 +91,7 @@ class CartServiceTest {
         when(cartRepository.save(any(Cart.class)))
                 .thenReturn(Mono.just(testCart));
 
-        StepVerifier.create(cartService.create(testUser))
+        StepVerifier.create(cartService.create(testUserId))
                 .expectNext(testCart)
                 .verifyComplete();
 
@@ -223,6 +224,6 @@ class CartServiceTest {
                 .expectNext(0)
                 .verifyComplete();
 
-        verify(cartRepository, never()).findByUserId(anyLong());
+        verify(cartRepository, never()).findByUserId(anyString());
     }
 }

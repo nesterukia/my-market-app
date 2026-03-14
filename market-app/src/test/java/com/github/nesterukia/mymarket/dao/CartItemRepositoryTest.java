@@ -3,7 +3,6 @@ package com.github.nesterukia.mymarket.dao;
 import com.github.nesterukia.mymarket.domain.Cart;
 import com.github.nesterukia.mymarket.domain.CartItem;
 import com.github.nesterukia.mymarket.domain.Item;
-import com.github.nesterukia.mymarket.domain.User;
 import com.github.nesterukia.mymarket.utils.CachedDbContainerTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,11 +26,8 @@ class CartItemRepositoryTest extends CachedDbContainerTest {
     @Autowired
     private CartRepository cartRepository;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    private User testUser1;
-    private User testUser2;
+    private String testUserId1;
+    private String testUserId2;
     private Item savedItem1;
     private Item savedItem2;
     private Item savedItem3;
@@ -64,10 +60,10 @@ class CartItemRepositoryTest extends CachedDbContainerTest {
                 .price(300.0)
                 .build();
 
-        testUser1 = userRepository.save(User.builder().build()).block();
-        testUser2 = userRepository.save(User.builder().build()).block();
-        Cart cart1 = Cart.builder().userId(testUser1.getId()).build();
-        Cart cart2 = Cart.builder().userId(testUser2.getId()).build();
+        testUserId1 = "testUserId1";
+        testUserId2 = "testUserId2";
+        Cart cart1 = Cart.builder().userId(testUserId1).build();
+        Cart cart2 = Cart.builder().userId(testUserId2).build();
 
         savedItem1 = itemRepository.save(item1).block();
         savedItem2 = itemRepository.save(item2).block();

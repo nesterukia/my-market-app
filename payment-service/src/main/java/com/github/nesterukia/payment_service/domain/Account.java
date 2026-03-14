@@ -20,7 +20,7 @@ public class Account {
     private Long id;
 
     @Column("user_id")
-    private Long userId;
+    private String userId;
 
     @Column("current_balance")
     private Double currentBalance;

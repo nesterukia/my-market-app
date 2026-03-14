@@ -1,7 +1,6 @@
 package com.github.nesterukia.mymarket.dao;
 
 import com.github.nesterukia.mymarket.domain.Cart;
-import com.github.nesterukia.mymarket.domain.User;
 import com.github.nesterukia.mymarket.utils.CachedDbContainerTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,20 +15,17 @@ class CartRepositoryTest extends CachedDbContainerTest {
     @Autowired
     private CartRepository cartRepository;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    private User testUser;
+    private String testUserId;
     private Cart testCart;
 
     @BeforeEach
     void setUp() {
         cartRepository.deleteAll().block();
 
-        testUser = userRepository.save(User.builder().build()).block();
+        testUserId = "testUserId_123456";
 
         testCart = Cart.builder()
-                .userId(testUser.getId())
+                .userId(testUserId)
                 .build();
     }
 
@@ -37,9 +33,9 @@ class CartRepositoryTest extends CachedDbContainerTest {
     void findByUserId_ShouldReturnCartWhenExists() {
         Cart savedCart = cartRepository.save(testCart).block();
 
-        StepVerifier.create(cartRepository.findByUserId(testUser.getId()))
+        StepVerifier.create(cartRepository.findByUserId(testUserId))
                 .expectNextMatches(cart ->
-                        cart.getUserId().equals(testUser.getId()) &&
+                        cart.getUserId().equals(testUserId) &&
                                 cart.getId().equals(savedCart.getId())
                 )
                 .verifyComplete();
@@ -49,7 +45,7 @@ class CartRepositoryTest extends CachedDbContainerTest {
     void findByUserId_ShouldReturnEmptyWhenNoCartForUser() {
         cartRepository.save(testCart).block();
 
-        StepVerifier.create(cartRepository.findByUserId(999L))
+        StepVerifier.create(cartRepository.findByUserId(testUserId))
                 .verifyComplete();
     }
 
@@ -58,7 +54,7 @@ class CartRepositoryTest extends CachedDbContainerTest {
         StepVerifier.create(cartRepository.save(testCart))
                 .expectNextMatches(cart ->
                         cart.getId() != null &&
-                                cart.getUserId().equals(testUser.getId())
+                                cart.getUserId().equals(testUserId)
                 )
                 .verifyComplete();
     }
@@ -70,7 +66,7 @@ class CartRepositoryTest extends CachedDbContainerTest {
         StepVerifier.create(cartRepository.findById(savedCart.getId()))
                 .expectNextMatches(cart ->
                         cart.getId().equals(savedCart.getId()) &&
-                                cart.getUserId().equals(testUser.getId())
+                                cart.getUserId().equals(testUserId)
                 )
                 .verifyComplete();
     }

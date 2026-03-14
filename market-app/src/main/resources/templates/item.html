@@ -16,8 +16,8 @@
                     <h2>
                         <span class="badge text-bg-success">Витрина магазина</span>
                     </h2>
-                    <a href="/orders" class="btn btn-secondary ms-auto bi bi-file-earmark-text"> Заказы</a>
-                    <a href="/cart/items" class="btn btn-secondary bi bi-cart4"> Корзина</a>
+                    <a th:if="${isAuthenticated}" href="/orders" class="btn btn-secondary ms-auto bi bi-file-earmark-text"> Заказы</a>
+                    <a th:if="${isAuthenticated}" href="/cart/items" class="btn btn-secondary bi bi-cart4"> Корзина</a>
                     <a href="/items" class="btn btn-secondary bi bi-arrow-left-square"> Главная</a>
                 </div>
             </div>
@@ -34,10 +34,10 @@
                         <p class="card-text" th:text="${item.description()}"></p>
                         <form th:action="@{${'/items/'+item.id()}}" method="post">
                             <div class="hstack gap-3">
-                                <button type="submit" class="btn btn-outline-secondary" name="action" value="MINUS">-</button>
-                                <span th:text="${item.count()}"></span>
-                                <button type="submit" class="btn btn-outline-secondary" name="action" value="PLUS">+</button>
-                                <button type="submit" class="btn btn-warning ms-auto bi bi-cart4" name="action" value="PLUS" th:if="${item.count()==0}"></button>
+                                <button th:if="${isAuthenticated}" type="submit" class="btn btn-outline-secondary" name="action" value="MINUS">-</button>
+                                <span th:if="${isAuthenticated}" th:text="${item.count()}"></span>
+                                <button th:if="${isAuthenticated}" type="submit" class="btn btn-outline-secondary" name="action" value="PLUS">+</button>
+                                <button th:if="${isAuthenticated && item.count()==0}" type="submit" class="btn btn-warning ms-auto bi bi-cart4" name="action" value="PLUS"></button>
                             </div>
                         </form>
                     </div>

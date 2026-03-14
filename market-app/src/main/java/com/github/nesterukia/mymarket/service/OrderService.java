@@ -28,14 +28,14 @@ public class OrderService {
         this.cartItemRepository = cartItemRepository;
     }
 
-    public Flux<Order> getAllOrders(Long userId) {
+    public Flux<Order> getAllOrders(String userId) {
         if (userId == null) {
             return Flux.empty();
         }
         return orderRepository.findAllByUserId(userId);
     }
 
-    public Mono<Order> getOrderByUserIdAndId(Long userId, Long id) {
+    public Mono<Order> getOrderByUserIdAndId(String userId, Long id) {
         return orderRepository.findByIdAndUserId(id, userId).switchIfEmpty(
                 Mono.error(new EntityNotFoundException(EntityType.Order, id))
         );

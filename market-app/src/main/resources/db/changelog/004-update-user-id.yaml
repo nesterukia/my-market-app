@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: update-user-entity-004
+      author: nesterukia
+      preConditions:
+        - onFail: MARK_RAN
+          tableExists:
+            tableName: users
+      changes:
+        - dropUniqueConstraint:
+            tableName: carts
+            constraintName: fk_carts_user
+        - modifyDataType:
+            tableName: carts
+            columnName: user_id
+            newDataType: varchar(255)
+        - dropUniqueConstraint:
+            tableName: orders
+            constraintName: fk_orders_user
+        - modifyDataType:
+            tableName: orders
+            columnName: user_id
+            newDataType: varchar(255)
+        - dropTable:
+            tableName: users
